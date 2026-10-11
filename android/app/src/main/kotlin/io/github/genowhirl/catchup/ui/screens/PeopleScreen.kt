@@ -188,6 +188,7 @@ fun PeopleScreen(
 
 @Composable
 fun PersonRow(p: Person, today: LocalDate, onClick: () -> Unit) {
+    val status = statusText(p, today)
     val subtitle = listOfNotNull(
         p.relationship,
         p.lastContacted?.let { formatDaysAgo(daysBetween(it, today)).replaceFirstChar { c -> c.uppercase() } } ?: "Not in touch yet",
@@ -204,7 +205,9 @@ fun PersonRow(p: Person, today: LocalDate, onClick: () -> Unit) {
         },
         supportingContent = { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingContent = { Avatar(p.name, 48.dp, p.priority) },
-        trailingContent = statusText(p, today)?.let { (status, text) -> { StatusPill(status, text) } },
+        trailingContent = if (status != null) {
+            { StatusPill(status.first, status.second) }
+        } else null,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier
             .padding(horizontal = 8.dp)

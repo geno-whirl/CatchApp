@@ -200,7 +200,7 @@ fun TodayScreen(people: List<Person>, now: LocalDateTime, userName: String, week
             item { SectionHeader("Birthdays") }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(birthdays.take(12), key = { "b:${it.label}" }) { b ->
+                    items(birthdays.take(12)) { b ->
                         Panel(Modifier.width(150.dp), onClick = { actions.openPerson(b.person.id) }, padding = PaddingValues(14.dp)) {
                             Avatar(b.person.name, 40.dp)
                             Spacer(Modifier.height(10.dp))

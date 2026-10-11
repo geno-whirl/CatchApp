@@ -16,13 +16,15 @@ Only `name` is required.
 | Field | Format |
 | --- | --- |
 | `name`, `nickname`, `relationship`, `location`, `how_we_met` | text |
+| `priority` | `high`, `medium` or `low` — how important keeping in touch is |
 | `tags` | list, lowercase-hyphenated: `[college, book-club]` |
 | `birthday` | `YYYY-MM-DD`, or `MM-DD` if the year is unknown |
 | `contact` | map of any keys; `phone`, `email`, `whatsapp`, `instagram`… **Quote phone numbers.** |
 | `family` | list of `{ name, relation, birthday, notes }` |
-| `cadence` | how often to keep in touch: `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `biannually`, `yearly`, or `6w` / `45d` / `2m` |
+| `cadence` | suggested rhythm: `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `biannually`, `yearly`, or `6w` / `45d` / `2m` |
+| `next_contact` | optional `YYYY-MM-DD`: when to get in touch next, overriding the cadence |
 | `last_contacted` | `YYYY-MM-DD` (the newest `## Log` date wins automatically) |
-| `next_catchup` | planned catch-up: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM` |
+| `plans` | scheduled catch-ups: list of `{ when, what, where, remind, notes }`; `when` is `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`, `remind` like `30m`, `2h`, `1d`, `none` |
 
 ## Body
 
@@ -31,20 +33,22 @@ Free-form notes, then a `## Log` section, newest first:
 ```markdown
 ## Log
 
-### 2026-10-11 · Video call
+### 2026-10-11 19:30 · Dinner · Luigi's
 - Moving to Denver in the spring.
 - [ ] Ask how the house hunt is going
 ```
 
-- One `### YYYY-MM-DD · <type>` heading per conversation (`Call`, `Video call`, `In person`, `Messages`, …).
+- One `### YYYY-MM-DD[ HH:MM] · <type>[ · <place>]` heading per conversation (`Call`, `Video call`, `In person`, `Messages`, `Dinner`…).
 - `- [ ] …` is something to bring up next time; mark it `- [x]` once it's been covered.
 
 ## Common tasks
 
 - **"I had coffee with Maya, she's moving to Denver"** → add a log entry dated today at the
-  top of Maya's `## Log` (create the section at the end of the file if needed). If a
-  `next_catchup` on or before that date exists, remove it. Tick off any follow-ups the user
-  says they covered.
+  top of Maya's `## Log` (create the section at the end of the file if needed). Remove the
+  matching entry from `plans` (or `next_catchup` in older files), and a `next_contact` that
+  this conversation satisfies. Tick off any follow-ups the user says they covered.
+- **"Dinner with Joe next Friday at 8"** → add `{ when: YYYY-MM-DD 20:00, what: Dinner }` to
+  Joe's `plans` (keep the list sorted by date).
 - **"Add Sam, met at the climbing gym"** → create `people/sam-<last>.md` (ask for the last name
   if unknown; don't guess). Put only what you were told.
 - **"Who should I call this week?" / "Prep me for my call with Jonas"** → read the files:

@@ -65,7 +65,7 @@ fun Context.addToCalendar(person: Person, plan: Plan) {
         .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
         .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, end)
         .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, plan.at.time == null)
-    plan.place?.let { intent.putExtra(CalendarContract.Events.EVENTLOCATION, it) }
+    plan.place?.let { intent.putExtra(CalendarContract.Events.EVENT_LOCATION, it) }
     ask?.let { intent.putExtra(CalendarContract.Events.DESCRIPTION, it) }
     launch(intent)
 }

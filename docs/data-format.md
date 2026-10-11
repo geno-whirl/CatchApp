@@ -23,15 +23,20 @@ Only `name` is required. Leave out fields you don't know rather than leaving the
 | `name` | text | `Maya Patel` | **Required.** |
 | `nickname` | text | `Mom` | Shown next to the name. |
 | `relationship` | text | `friend` | Free text. Common: `family`, `friend`, `colleague`, `neighbour`. Also used as a filter. |
+| `priority` | text | `high` | How important keeping in touch is: `high`, `medium` (default) or `low`. Ranks suggestions; with no `cadence`, it implies one (high → monthly, medium → quarterly, low → yearly). |
 | `tags` | list | `[college, climbing]` | Lowercase, hyphenated. Used for filtering and search. |
 | `birthday` | date | `1991-10-19` or `10-19` | `YYYY-MM-DD`, or `MM-DD` when the year is unknown. |
 | `location` | text | `Seattle, USA` | |
 | `contact` | map | see below | Any keys. `phone`, `email` and URLs become links. **Quote phone numbers.** |
 | `family` | list | see below | Partner, kids, parents, pets… |
 | `how_we_met` | text | `Freshman-year roommates.` | |
-| `cadence` | text | `monthly` | How often you want to be in touch. `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `biannually`, `yearly`, or `<n>d` / `<n>w` / `<n>m` / `<n>y` (e.g. `6w`). |
+| `cadence` | text | `monthly` | The suggested rhythm for keeping in touch. `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `biannually`, `yearly`, or `<n>d` / `<n>w` / `<n>m` / `<n>y` (e.g. `6w`). |
+| `next_contact` | date | `2026-11-01` | Optional: a specific date to get in touch next, instead of last contact + cadence. Cleared automatically when a logged interaction satisfies it. |
 | `last_contacted` | date | `2026-07-20` | `YYYY-MM-DD`. Optional when there is a `## Log`; the newer of the two is used. |
-| `next_catchup` | date/time | `2026-10-20 18:30` | A planned catch-up: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`. Removed automatically when you log a catch-up on or after that day. |
+| `plans` | list | see below | Scheduled catch-ups, near or far ahead, each with an optional reminder. A plan is removed when it's logged. |
+
+`next_catchup: <date>` (a single plan) from older files is still read, and becomes a
+`plans` entry the next time the app edits the file.
 
 ```yaml
 contact:
@@ -46,6 +51,12 @@ family:
     birthday: 2022-04-03
     notes: Obsessed with dinosaurs.
   - Biscuit            # a bare name works too
+plans:
+  - when: 2026-10-20 18:30   # YYYY-MM-DD, or YYYY-MM-DD HH:MM
+    what: Dinner             # Call, Video call, Coffee, Dinner… (optional)
+    where: Luigi's           # optional
+    remind: 2h               # 30m, 2h, 1d or none; default depends on the kind
+    notes: Her treat this time
 ```
 
 ## Body
@@ -54,22 +65,23 @@ Anything goes: interests, gift ideas, things to remember, topics to follow up on
 
 ### The log
 
-Conversations go under a `## Log` heading, **newest first**, one `###` heading per
-interaction that starts with the date:
+Interactions go under a `## Log` heading, **newest first**, one `###` heading per
+call, meetup or conversation:
 
 ```markdown
 ## Log
 
+### 2026-10-20 21:00 · Dinner · Luigi's
+- Moving to Denver in the spring.
+- [ ] Ask how the house hunt is going
+
 ### 2026-08-30 · Video call
 - Leela started preschool.
-- Follow up: ask how the new team is going.
-
-### 2026-06-14 · Coffee
-- Visiting Portland in the fall.
 ```
 
-The date and the text after it (`Video call`) are read by the app; the most recent date
-becomes "last contact". Separators `·`, `-`, `—`, `:` and `|` all work, or none at all.
+The heading is `### YYYY-MM-DD[ HH:MM] · Kind[ · Place]` — the time and place are
+optional. Bullet lines are notes; `- [ ]` lines are follow-ups. The most recent date
+becomes "last contact". Separators `·`, `-`, `—`, `:` and `|` all work after the date.
 
 ### Follow-ups
 

@@ -218,7 +218,9 @@ private fun Toggle(title: String, text: String, value: Boolean, onChange: (Boole
 private fun Row_(icon: ImageVector, title: String, text: String?, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = text?.let { { Text(it) } },
+        supportingContent = if (text != null) {
+            { Text(text) }
+        } else null,
         leadingContent = { Icon(icon, null) },
         trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),

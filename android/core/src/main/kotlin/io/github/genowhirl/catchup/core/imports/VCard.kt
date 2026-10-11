@@ -106,7 +106,7 @@ object VCard {
 
     private val IGNORED_CATEGORIES = setOf("mycontacts", "starred", "imported", "card")
 
-    internal fun addContact(contact: MutableMap<String, String>, key: String, value: String) {
+    fun addContact(contact: MutableMap<String, String>, key: String, value: String) {
         if (value.isBlank() || value in contact.values) return
         var k = key
         var n = 2

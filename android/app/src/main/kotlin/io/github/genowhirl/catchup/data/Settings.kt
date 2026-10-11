@@ -35,6 +35,8 @@ sealed interface Storage {
 }
 
 data class AppSettings(
+    /** False until read from disk, so the UI doesn't flash onboarding. */
+    val loaded: Boolean = false,
     val onboarded: Boolean = false,
     val userName: String = "",
     val storage: Storage = Storage.Local,
@@ -86,6 +88,7 @@ class SettingsStore(private val context: Context) {
     private fun Preferences.toSettings(): AppSettings {
         val d = AppSettings()
         return AppSettings(
+            loaded = true,
             onboarded = this[Keys.onboarded] ?: d.onboarded,
             userName = this[Keys.userName] ?: d.userName,
             storage = this[Keys.storage]?.let { runCatching { json.decodeFromString(Storage.serializer(), it) }.getOrNull() } ?: d.storage,

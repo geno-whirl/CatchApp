@@ -231,7 +231,6 @@ fun CatchUpApp(vm: AppViewModel) {
     CatchUpTheme(dynamic = settings.dynamicColor) {
         val backStack by nav.currentBackStackEntryAsState()
         val route = backStack?.destination?.route
-        val start = if (settings.onboarded) "today" else "onboarding"
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
@@ -256,10 +255,12 @@ fun CatchUpApp(vm: AppViewModel) {
             },
             contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         ) { padding ->
-            if (!directory.loaded) {
+            if (!directory.loaded || !settings.loaded) {
                 Box(Modifier.fillMaxSize())
                 return@Scaffold
             }
+            // Decided once, so finishing onboarding doesn't rebuild the navigation graph.
+            val start = remember { if (settings.onboarded) "today" else "onboarding" }
             NavHost(nav, startDestination = start, modifier = Modifier.fillMaxSize()) {
                 composable("onboarding") {
                     OnboardingScreen(

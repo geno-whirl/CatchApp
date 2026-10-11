@@ -74,11 +74,14 @@ const KNOWN_KEYS = new Set([
   "cadence",
   "last_contacted",
   "next_catchup",
+  "priority",
+  "next_contact",
+  "plans",
 ]);
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 const LOG_HEADING = /^##\s+log\s*$/i;
-const LOG_ENTRY = /^###\s+(\d{4}-\d{2}-\d{2})\b\s*(?:[-–—·:|]\s*)?(.*)$/;
+const LOG_ENTRY = /^###\s+(\d{4}-\d{2}-\d{2})(?:[ T]\d{1,2}:\d{2})?\b\s*(?:[-–—·:|]\s*)?(.*)$/;
 const TASK = /^\s*[-*+]\s+\[([ xX])\]\s+(.+?)\s*$/;
 const DATE_TIME = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/;
 
@@ -236,6 +239,26 @@ export function parsePerson(id: string, raw: string): ParseResult {
     if (!lastContacted) error(`\`last_contacted\` "${lastContactedRaw}" must be YYYY-MM-DD.`);
   }
 
+  const priority = asText(data.priority);
+  if (priority && !["high", "medium", "low"].includes(priority.toLowerCase())) {
+    error(`\`priority\` "${priority}" should be high, medium or low.`);
+  }
+  const nextContact = asText(data.next_contact);
+  if (nextContact && !parseDate(nextContact)) error(`\`next_contact\` "${nextContact}" must be YYYY-MM-DD.`);
+
+  // Plans (scheduled catch-ups): the earliest one is shown as the next catch-up here.
+  const plans: PlannedCatchUp[] = [];
+  if (Array.isArray(data.plans)) {
+    data.plans.forEach((entry, i) => {
+      const when = asText((entry as Record<string, unknown> | null)?.when);
+      const parsed = when ? parseDateTime(when) : null;
+      if (!parsed) error(`\`plans[${i}].when\` must be YYYY-MM-DD or YYYY-MM-DD HH:MM.`);
+      else plans.push(parsed);
+    });
+  } else if (data.plans !== undefined && data.plans !== null) {
+    warn("`plans` should be a list.");
+  }
+
   let nextCatchup: PlannedCatchUp | undefined;
   const nextCatchupRaw = asText(data.next_catchup);
   if (nextCatchupRaw) {
@@ -243,6 +266,10 @@ export function parsePerson(id: string, raw: string): ParseResult {
     if (!nextCatchup) {
       error(`\`next_catchup\` "${nextCatchupRaw}" must be YYYY-MM-DD or YYYY-MM-DD HH:MM.`);
     }
+  }
+
+  if (!nextCatchup && plans.length > 0) {
+    nextCatchup = plans.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
   }
 
   const log = parseLog(split.body);
