@@ -3,6 +3,7 @@ import type { Person } from "../lib/person";
 import type { PersonStatus } from "../lib/status";
 import { Avatar } from "./Avatar";
 import { ContactBadge } from "./ContactBadge";
+import { formatPlanned } from "./ScheduleSheet";
 
 const BIRTHDAY_SOON_DAYS = 14;
 
@@ -41,6 +42,12 @@ export function PersonCard({ person, status }: { person: Person; status: PersonS
             <ContactBadge status={status.contact} />
           </dd>
         </div>
+        {person.nextCatchup && (
+          <div className="highlight">
+            <dt>Planned</dt>
+            <dd>{formatPlanned(person.nextCatchup)}</dd>
+          </div>
+        )}
         {person.family.length > 0 && (
           <div>
             <dt>Family</dt>

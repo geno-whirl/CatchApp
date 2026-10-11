@@ -97,8 +97,8 @@ describe("personStatus", () => {
   });
 });
 
-describe("people/ directory", () => {
-  const dir = join(__dirname, "../../people");
+describe("examples/people directory", () => {
+  const dir = join(__dirname, "../../examples/people");
   const files = readdirSync(dir).filter((f) => f.endsWith(".md") && !f.startsWith("_"));
 
   it.each(files)("%s parses without errors", (file) => {

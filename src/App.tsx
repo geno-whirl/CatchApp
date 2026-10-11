@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { PersonCard } from "./components/PersonCard";
-import { PersonDetail } from "./components/PersonDetail";
-import { loadPeople } from "./lib/people";
-import type { Person } from "./lib/person";
-import { type PersonStatus, personStatus } from "./lib/status";
+import { Icon, type IconName } from "./components/Icon";
+import { Toaster } from "./components/Toaster";
+import { buildAgenda } from "./lib/priorities";
+import { setBadge } from "./pwa";
+import { EditMarkdown } from "./screens/EditMarkdown";
+import { Import } from "./screens/Import";
+import { People } from "./screens/People";
+import { PersonForm } from "./screens/PersonForm";
+import { PersonPage } from "./screens/PersonPage";
+import { Settings } from "./screens/Settings";
+import { Today } from "./screens/Today";
+import { Welcome } from "./screens/Welcome";
+import { engine, usePeople, useSync, useToday } from "./store";
 
-type SortKey = "name" | "birthday" | "contact";
-
-const { people, problems } = loadPeople();
-
-function useHashRoute(): string {
-  const [hash, setHash] = useState(() => window.location.hash);
+function useHash(): string {
+  const [hash, setHash] = useState(() => window.location.hash || "#/");
   useEffect(() => {
     const onChange = () => {
-      setHash(window.location.hash);
+      setHash(window.location.hash || "#/");
       window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", onChange);
@@ -22,158 +26,104 @@ function useHashRoute(): string {
   return hash;
 }
 
-function matches(person: Person, query: string): boolean {
-  if (!query) return true;
-  const haystack = [
-    person.name,
-    person.nickname,
-    person.relationship,
-    person.location,
-    ...person.tags,
-    ...person.family.map((f) => f.name),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .every((word) => haystack.includes(word));
+/** Sync whenever the app comes back to the foreground or the network returns. */
+function useAutoSync() {
+  useEffect(() => {
+    const sync = () => document.visibilityState === "visible" && void engine.sync();
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("online", sync);
+    const timer = setInterval(sync, 5 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("online", sync);
+      clearInterval(timer);
+    };
+  }, []);
 }
 
-function compare(sort: SortKey, a: [Person, PersonStatus], b: [Person, PersonStatus]): number {
-  const [pa, sa] = a;
-  const [pb, sb] = b;
-  if (sort === "birthday") {
-    return (sa.daysUntilBirthday ?? Infinity) - (sb.daysUntilBirthday ?? Infinity);
-  }
-  if (sort === "contact") {
-    // Longest since last contact first; never-contacted people at the very top.
-    return (sb.daysSinceContact ?? Infinity) - (sa.daysSinceContact ?? Infinity);
-  }
-  return pa.name.localeCompare(pb.name);
+const TABS: { href: string; label: string; icon: IconName; match: RegExp }[] = [
+  { href: "#/", label: "Today", icon: "today", match: /^#\/$/ },
+  { href: "#/people", label: "People", icon: "people", match: /^#\/people/ },
+  { href: "#/new", label: "Add", icon: "plus", match: /^#\/new/ },
+  { href: "#/import", label: "Import", icon: "import", match: /^#\/import/ },
+  { href: "#/settings", label: "Settings", icon: "settings", match: /^#\/settings/ },
+];
+
+function SyncDot() {
+  const { status, pending, config } = useSync();
+  if (!config) return null;
+  const label =
+    status === "syncing" ? "Syncing…" : status === "offline" ? `Offline${pending ? ` · ${pending} waiting` : ""}` : status === "error" ? "Sync problem" : "Saved";
+  return (
+    <a href="#/settings" className={`sync-dot sync-${status}`} title={label}>
+      <span className="dot" />
+      <span className="small">{label}</span>
+    </a>
+  );
 }
 
 export function App() {
-  const hash = useHashRoute();
-  const [query, setQuery] = useState("");
-  const [tag, setTag] = useState<string | null>(null);
-  const [sort, setSort] = useState<SortKey>("name");
-  const today = useMemo(() => new Date(), []);
+  const hash = useHash();
+  const { ready, config } = useSync();
+  const { people } = usePeople();
+  const today = useToday();
+  useAutoSync();
 
-  const statuses = useMemo(
-    () => new Map(people.map((p) => [p.id, personStatus(p, today)])),
-    [today],
+  const badgeCount = useMemo(
+    () => buildAgenda(people, today).suggestions.filter((s) => s.reasons.some((r) => r.kind === "overdue" || (r.kind === "birthday" && r.days === 0))).length,
+    [people, today],
   );
+  useEffect(() => setBadge(badgeCount), [badgeCount]);
 
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of people) {
-      if (p.relationship) set.add(p.relationship);
-      p.tags.forEach((t) => set.add(t));
-    }
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, []);
+  if (!ready) return <div className="splash" />;
+  if (!config) {
+    return (
+      <div className="app">
+        <Welcome />
+        <Toaster />
+      </div>
+    );
+  }
 
-  const visible = useMemo(
-    () =>
-      people
-        .filter((p) => matches(p, query))
-        .filter((p) => !tag || p.relationship === tag || p.tags.includes(tag))
-        .map((p) => [p, statuses.get(p.id)!] as [Person, PersonStatus])
-        .sort((a, b) => compare(sort, a, b)),
-    [query, tag, sort, statuses],
-  );
+  const m = /^#\/people\/([^/]+)(?:\/(edit|markdown))?$/.exec(hash);
+  const person = m ? people.find((p) => p.id === decodeURIComponent(m[1])) : undefined;
 
-  const routeId = /^#\/people\/(.+)$/.exec(hash)?.[1];
-  const selected = routeId && people.find((p) => p.id === decodeURIComponent(routeId));
+  let screen;
+  if (m) {
+    screen = !person ? (
+      <div className="empty muted">
+        <p>That person isn't here (yet). If you just synced, give it a second.</p>
+        <a className="button" href="#/people">All people</a>
+      </div>
+    ) : m[2] === "edit" ? (
+      <PersonForm key={person.id} person={person} />
+    ) : m[2] === "markdown" ? (
+      <EditMarkdown key={person.id} person={person} />
+    ) : (
+      <PersonPage person={person} />
+    );
+  } else if (hash.startsWith("#/people")) screen = <People />;
+  else if (hash.startsWith("#/new")) screen = <PersonForm />;
+  else if (hash.startsWith("#/import")) screen = <Import />;
+  else if (hash.startsWith("#/settings")) screen = <Settings />;
+  else screen = <Today />;
 
   return (
     <div className="app">
       <header className="topbar">
-        <a href="#/" className="brand">
-          CatchUp
-        </a>
-        <span className="muted small">{people.length} people</span>
+        <a href="#/" className="brand">CatchUp</a>
+        <SyncDot />
       </header>
-
-      {problems.length > 0 && (
-        <details className="problems">
-          <summary>
-            {problems.length} file{problems.length > 1 ? "s" : ""} need attention
-          </summary>
-          <ul>
-            {problems.map(({ file, issues }) => (
-              <li key={file}>
-                <code>{file}</code>
-                <ul>
-                  {issues.map((issue, i) => (
-                    <li key={i} className={issue.level}>
-                      {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      {selected ? (
-        <PersonDetail person={selected} status={statuses.get(selected.id)!} today={today} />
-      ) : (
-        <main>
-          <div className="toolbar">
-            <input
-              type="search"
-              placeholder="Search names, places, tags, family…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search people"
-            />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              aria-label="Sort by"
-            >
-              <option value="name">Name</option>
-              <option value="birthday">Upcoming birthday</option>
-              <option value="contact">Longest since contact</option>
-            </select>
-          </div>
-
-          {allTags.length > 0 && (
-            <div className="chips" role="group" aria-label="Filter by tag">
-              <button className={tag === null ? "active" : ""} onClick={() => setTag(null)}>
-                All
-              </button>
-              {allTags.map((t) => (
-                <button
-                  key={t}
-                  className={tag === t ? "active" : ""}
-                  onClick={() => setTag(tag === t ? null : t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {visible.length > 0 ? (
-            <div className="grid">
-              {visible.map(([person, status]) => (
-                <PersonCard key={person.id} person={person} status={status} />
-              ))}
-            </div>
-          ) : (
-            <p className="empty muted">
-              {people.length === 0
-                ? "No one here yet. Add a Markdown file to the people/ folder to get started."
-                : "No one matches that search."}
-            </p>
-          )}
-        </main>
-      )}
+      <main>{screen}</main>
+      <nav className="tabbar" aria-label="Main">
+        {TABS.map((tab) => (
+          <a key={tab.href} href={tab.href} className={tab.match.test(hash) ? "active" : ""}>
+            <Icon name={tab.icon} size={22} />
+            <span>{tab.label}</span>
+          </a>
+        ))}
+      </nav>
+      <Toaster />
     </div>
   );
 }

@@ -1,14 +1,18 @@
 # CatchUp data format
 
-Every person is one Markdown file in [`people/`](../people). The file name (without `.md`)
+Every person is one Markdown file in a `people/` folder. The file name (without `.md`)
 is the person's id, lowercase and hyphenated: `people/maya-patel.md` → `maya-patel`.
+
+Your `people/` folder lives **outside this app's repository**: in a private GitHub repo
+(start from [`data-template/`](../data-template)) or on your phone. Fictional examples are in
+[`examples/people/`](../examples/people).
 
 A file has two parts:
 
 1. **YAML frontmatter** between `---` lines: structured facts the app reads.
 2. **Markdown body**: free-form notes, plus an optional `## Log` of conversations.
 
-Files starting with `_` (like [`_template.md`](../people/_template.md)) are ignored.
+Files starting with `_` (like [`_template.md`](../data-template/people/_template.md)) are ignored.
 
 ## Frontmatter fields
 
@@ -27,6 +31,7 @@ Only `name` is required. Leave out fields you don't know rather than leaving the
 | `how_we_met` | text | `Freshman-year roommates.` | |
 | `cadence` | text | `monthly` | How often you want to be in touch. `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `biannually`, `yearly`, or `<n>d` / `<n>w` / `<n>m` / `<n>y` (e.g. `6w`). |
 | `last_contacted` | date | `2026-07-20` | `YYYY-MM-DD`. Optional when there is a `## Log`; the newer of the two is used. |
+| `next_catchup` | date/time | `2026-10-20 18:30` | A planned catch-up: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`. Removed automatically when you log a catch-up on or after that day. |
 
 ```yaml
 contact:
@@ -66,8 +71,20 @@ interaction that starts with the date:
 The date and the text after it (`Video call`) are read by the app; the most recent date
 becomes "last contact". Separators `·`, `-`, `—`, `:` and `|` all work, or none at all.
 
+### Follow-ups
+
+Any task-list item in the body is a follow-up — something to bring up next time:
+
+```markdown
+- [ ] Ask how the house hunt is going
+- [x] Send her the photos
+```
+
+The app shows open items on the person's page and on Today, lets you tick them off while
+logging, and rewrites `[ ]` to `[x]`.
+
 ## Checking files
 
-Run `npm run validate` to check every file. Errors (missing name, malformed dates,
+Run `npm run validate -- path/to/your/data-repo` to check every file. Errors (missing name, malformed dates,
 unknown cadence) fail the check; warnings (unknown fields, unquoted phone numbers) don't.
-The running app also lists problems at the top of the page.
+The app lists problems under Settings.

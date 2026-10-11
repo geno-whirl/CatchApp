@@ -16,6 +16,18 @@ export interface LogEntry {
   title?: string;
 }
 
+/** A `- [ ] …` task anywhere in the body: something to bring up next time. */
+export interface FollowUp {
+  text: string;
+  done: boolean;
+}
+
+export interface PlannedCatchUp {
+  /** Local date (and time, when `hasTime`). */
+  date: Date;
+  hasTime: boolean;
+}
+
 export interface Person {
   /** File name without `.md`, e.g. `ada-lovelace`. */
   id: string;
@@ -33,6 +45,8 @@ export interface Person {
   /** Most recent of `last_contacted` and the newest `## Log` entry. */
   lastContacted?: Date;
   log: LogEntry[];
+  followUps: FollowUp[];
+  nextCatchup?: PlannedCatchUp;
   /** Markdown after the frontmatter: free-form notes and the log. */
   body: string;
 }
@@ -59,11 +73,14 @@ const KNOWN_KEYS = new Set([
   "how_we_met",
   "cadence",
   "last_contacted",
+  "next_catchup",
 ]);
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 const LOG_HEADING = /^##\s+log\s*$/i;
 const LOG_ENTRY = /^###\s+(\d{4}-\d{2}-\d{2})\b\s*(?:[-–—·:|]\s*)?(.*)$/;
+const TASK = /^\s*[-*+]\s+\[([ xX])\]\s+(.+?)\s*$/;
+const DATE_TIME = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/;
 
 export function splitFrontmatter(raw: string): { data: unknown; body: string } | null {
   const text = raw.replace(/^﻿/, "");
@@ -87,6 +104,28 @@ export function parseLog(body: string): LogEntry[] {
     if (date) entries.push({ date, title: m[2].trim() || undefined });
   }
   return entries.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+/** All `- [ ]` / `- [x]` items in the body, in file order. */
+export function parseFollowUps(body: string): FollowUp[] {
+  const items: FollowUp[] = [];
+  for (const line of body.split(/\r?\n/)) {
+    const m = TASK.exec(line);
+    if (m) items.push({ text: m[2], done: m[1] !== " " });
+  }
+  return items;
+}
+
+/** Parses `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`. */
+export function parseDateTime(value: string): PlannedCatchUp | null {
+  const m = DATE_TIME.exec(value.trim());
+  const day = m && parseDate(m[1]);
+  if (!m || !day) return null;
+  if (m[2] === undefined) return { date: day, hasTime: false };
+  const [hours, minutes] = [Number(m[2]), Number(m[3])];
+  if (hours > 23 || minutes > 59) return null;
+  day.setHours(hours, minutes);
+  return { date: day, hasTime: true };
 }
 
 function asText(value: unknown): string | undefined {
@@ -197,6 +236,15 @@ export function parsePerson(id: string, raw: string): ParseResult {
     if (!lastContacted) error(`\`last_contacted\` "${lastContactedRaw}" must be YYYY-MM-DD.`);
   }
 
+  let nextCatchup: PlannedCatchUp | undefined;
+  const nextCatchupRaw = asText(data.next_catchup);
+  if (nextCatchupRaw) {
+    nextCatchup = parseDateTime(nextCatchupRaw) ?? undefined;
+    if (!nextCatchup) {
+      error(`\`next_catchup\` "${nextCatchupRaw}" must be YYYY-MM-DD or YYYY-MM-DD HH:MM.`);
+    }
+  }
+
   const log = parseLog(split.body);
   if (log.length > 0 && (!lastContacted || log[0].date > lastContacted)) {
     lastContacted = log[0].date;
@@ -218,6 +266,8 @@ export function parsePerson(id: string, raw: string): ParseResult {
       cadenceDays,
       lastContacted,
       log,
+      followUps: parseFollowUps(split.body),
+      nextCatchup,
       body: split.body.trim(),
     },
     issues,
