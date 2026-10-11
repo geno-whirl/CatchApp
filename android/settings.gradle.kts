@@ -1,12 +1,8 @@
 pluginManagement {
+    // `-PcoreOnly` builds just the pure-Kotlin logic, skipping Google's Maven entirely.
+    val coreOnly = providers.gradleProperty("coreOnly").isPresent
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        if (!coreOnly) google()
         // repo1 mirror first: the default Maven Central host rate-limits some networks.
         maven("https://repo1.maven.org/maven2")
         mavenCentral()
@@ -24,16 +20,9 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    val coreOnly = providers.gradleProperty("coreOnly").isPresent
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("com\\.google\\.firebase.*")
-                includeGroupByRegex("com\\.google\\.testing.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        if (!coreOnly) google()
         maven("https://repo1.maven.org/maven2")
         mavenCentral()
     }
@@ -42,5 +31,4 @@ dependencyResolutionManagement {
 rootProject.name = "CatchUp"
 
 include(":core")
-// `-PcoreOnly` builds just the pure-Kotlin logic (no Android SDK needed).
 if (!providers.gradleProperty("coreOnly").isPresent) include(":app")
