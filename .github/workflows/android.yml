@@ -1,0 +1,75 @@
+name: Android
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - "examples/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest
+      - name: Screenshots
+        run: ./gradlew --no-daemon :app:recordRoborazziDebug
+      - name: Build APK
+        run: ./gradlew --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports
+          path: |
+            android/*/build/reports/tests
+            android/*/build/test-results
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: android/app/build/outputs/roborazzi
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catchup-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+
+  # A downloadable APK for testing on a phone: Releases → "Android (latest build)".
+  release:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: catchup-apk
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: android-${{ github.ref_name }}
+        run: |
+          mv *.apk CatchUp.apk
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          gh release create "$TAG" CatchUp.apk --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "CatchUp for Android (${GITHUB_REF_NAME}, build ${GITHUB_RUN_NUMBER})" \
+            --notes "Latest build of the ${GITHUB_REF_NAME} branch. On your phone: download CatchUp.apk and open it to install (allow installs from your browser when asked). Each new build installs over the previous one."

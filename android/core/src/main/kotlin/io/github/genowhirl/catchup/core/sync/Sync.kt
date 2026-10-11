@@ -102,6 +102,11 @@ class SyncEngine(
 
     val hasRemote: Boolean get() = remote != null
 
+    /** Sets the remote at startup without touching the data (use `switchRemote` to move data). */
+    fun attach(store: RemoteStore?) {
+        remote = store
+    }
+
     /**
      * Switches storage. With `carry`, the people currently in the app are added to the new
      * place (files that already exist there are left alone).

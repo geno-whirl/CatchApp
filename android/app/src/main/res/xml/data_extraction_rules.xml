@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Back up people (on-device data) but never settings, which can hold access tokens. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="catchup-data.json" />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="datastore" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="catchup-data.json" />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="datastore" />
+    </device-transfer>
+</data-extraction-rules>
