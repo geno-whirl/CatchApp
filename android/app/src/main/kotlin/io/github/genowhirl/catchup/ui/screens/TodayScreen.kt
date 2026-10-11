@@ -133,7 +133,7 @@ fun TodayScreen(people: List<Person>, now: LocalDateTime, userName: String, week
 
         item {
             Spacer(Modifier.height(16.dp))
-            WeekCard(doneThisWeek, plannedThisWeek, weeklyGoal, actions.planWeek)
+            WeekCard(if (monday.isAfter(today)) "Your week ahead" else "This week", doneThisWeek, plannedThisWeek, weeklyGoal, actions.planWeek)
         }
 
         if (awaiting.isNotEmpty()) {
@@ -223,7 +223,7 @@ fun TodayScreen(people: List<Person>, now: LocalDateTime, userName: String, week
 }
 
 @Composable
-private fun WeekCard(done: Int, planned: Int, goal: Int, onPlan: () -> Unit) {
+private fun WeekCard(title: String, done: Int, planned: Int, goal: Int, onPlan: () -> Unit) {
     val total = done + planned
     val progress = if (goal <= 0) 0f else (total.toFloat() / goal).coerceIn(0f, 1f)
     Box(
@@ -247,7 +247,7 @@ private fun WeekCard(done: Int, planned: Int, goal: Int, onPlan: () -> Unit) {
             }
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
-                Text(if (monday.isAfter(today)) "Your week ahead" else "This week", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
                     when {
                         total >= goal && goal > 0 -> "You've hit your goal. Lovely."
