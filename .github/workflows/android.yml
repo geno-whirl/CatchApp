@@ -17,6 +17,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: android
@@ -31,6 +33,18 @@ jobs:
         run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest
       - name: Screenshots
         run: ./gradlew --no-daemon :app:recordRoborazziDebug
+      # Screenshots also go to a hidden ref (refs/screenshots/<branch>), easy to fetch for review.
+      - name: Publish screenshots
+        if: always() && github.event_name == 'push'
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          dir=app/build/outputs/roborazzi
+          [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ] || exit 0
+          cd "$dir"
+          git init -q . && git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Screenshots for $GITHUB_SHA"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/screenshots/${GITHUB_REF_NAME}"
       - name: Build APK
         run: ./gradlew --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
