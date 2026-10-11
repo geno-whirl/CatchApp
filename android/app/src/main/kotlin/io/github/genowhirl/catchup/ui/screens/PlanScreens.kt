@@ -94,7 +94,6 @@ import io.github.genowhirl.catchup.ui.components.weekday
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.temporal.TemporalAdjusters
 
 // ---------------------------------------------------------------------------------------------
 // The Plans tab: the week ahead and everything scheduled further out.
@@ -109,11 +108,12 @@ fun PlansTab(
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val all = upcomingPlans(people, today, 400)
-    val sunday = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+    // Grouped by the same rolling 7 days as the strip above, so the two always agree.
+    val inAWeek = today.plusDays(7)
     val groups = listOf(
-        "This week" to all.filter { !it.plan.at.date.isAfter(sunday) },
-        "Next week" to all.filter { it.plan.at.date.isAfter(sunday) && !it.plan.at.date.isAfter(sunday.plusWeeks(1)) },
-        "Later" to all.filter { it.plan.at.date.isAfter(sunday.plusWeeks(1)) },
+        "Next 7 days" to all.filter { it.plan.at.date.isBefore(inAWeek) },
+        "The week after" to all.filter { !it.plan.at.date.isBefore(inAWeek) && it.plan.at.date.isBefore(inAWeek.plusDays(7)) },
+        "Later" to all.filter { !it.plan.at.date.isBefore(inAWeek.plusDays(7)) },
     ).filter { it.second.isNotEmpty() }
 
     Box(Modifier.fillMaxSize()) {

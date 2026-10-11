@@ -1,6 +1,13 @@
 package io.github.genowhirl.catchup.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -144,11 +151,10 @@ fun SettingsScreen(
                 Toggle("Ask me to plan my week", "A notification to pick when you're free and who to see.", settings.weeklyPrompt) { v -> actions.update { it.copy(weeklyPrompt = v) } }
                 if (settings.weeklyPrompt) {
                     Spacer(Modifier.height(12.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DayOfWeek.entries.forEach { d ->
-                            FilterChip(settings.planningDay == d, { actions.update { it.copy(planningDay = d) } }, { Text(d.getDisplayName(TextStyle.SHORT, java.util.Locale.getDefault())) })
-                        }
+                    ChoiceRow(DayOfWeek.entries, settings.planningDay, { d -> d.getDisplayName(TextStyle.SHORT, java.util.Locale.getDefault()).take(2) }) { d ->
+                        actions.update { it.copy(planningDay = d) }
                     }
+                    Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("At", style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.width(12.dp))
@@ -157,9 +163,8 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("Catch-ups per week", style = MaterialTheme.typography.bodyLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (1..7).forEach { n -> FilterChip(settings.weeklyGoal == n, { actions.update { it.copy(weeklyGoal = n) } }, { Text("$n") }) }
-                }
+                Spacer(Modifier.height(8.dp))
+                ChoiceRow((1..7).toList(), settings.weeklyGoal, { "$it" }) { n -> actions.update { it.copy(weeklyGoal = n) } }
             }
         }
 
@@ -198,6 +203,25 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
             )
+        }
+    }
+}
+
+/** A row of equal-width choices that never wraps (days of the week, small numbers). */
+@Composable
+private fun <T> ChoiceRow(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { option ->
+            val on = option == selected
+            Box(
+                Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(14.dp))
+                    .background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                    .border(1.dp, if (on) Color.Transparent else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                    .selectable(on, role = Role.RadioButton) { onSelect(option) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label(option), style = MaterialTheme.typography.labelLarge, color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+            }
         }
     }
 }
