@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CheckBox
 import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
@@ -101,6 +103,7 @@ class PersonActions(
     val plan: (Plan?) -> Unit,
     val keepInTouch: () -> Unit,
     val toggleFollowUp: (String, Boolean) -> Unit,
+    val addFollowUp: (String) -> Unit,
     val call: (String) -> Unit,
     val text: (String) -> Unit,
     val whatsapp: (String) -> Unit,
@@ -174,16 +177,14 @@ fun PersonScreen(p: Person, today: LocalDate, actions: PersonActions) {
 
             val open = p.followUps.filter { !it.done }
             val done = p.followUps.filter { it.done }
-            if (p.followUps.isNotEmpty()) {
-                item { SectionHeader("Next time, ask about", Modifier.padding(horizontal = 20.dp)) }
-                item {
-                    Panel(Modifier.padding(horizontal = 20.dp), padding = PaddingValues(vertical = 8.dp, horizontal = 8.dp)) {
-                        if (open.isEmpty()) Text("Nothing open.", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        open.forEach { f -> CheckRow(f.text, false) { actions.toggleFollowUp(f.text, true) } }
-                        if (showDone) done.forEach { f -> CheckRow(f.text, true) { actions.toggleFollowUp(f.text, false) } }
-                        if (done.isNotEmpty()) {
-                            TextButton({ showDone = !showDone }) { Text(if (showDone) "Hide done" else "Show ${done.size} done") }
-                        }
+            item { SectionHeader("Next time, ask about", Modifier.padding(horizontal = 20.dp)) }
+            item {
+                Panel(Modifier.padding(horizontal = 20.dp), padding = PaddingValues(vertical = 8.dp, horizontal = 8.dp)) {
+                    open.forEach { f -> CheckRow(f.text, false) { actions.toggleFollowUp(f.text, true) } }
+                    if (showDone) done.forEach { f -> CheckRow(f.text, true) { actions.toggleFollowUp(f.text, false) } }
+                    AddFollowUpField(actions.addFollowUp)
+                    if (done.isNotEmpty()) {
+                        TextButton({ showDone = !showDone }) { Text(if (showDone) "Hide done" else "Show ${done.size} done") }
                     }
                 }
             }
@@ -302,6 +303,35 @@ private fun KeepInTouch(p: Person, today: LocalDate, onEdit: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun AddFollowUpField(onAdd: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val submit = {
+        if (text.isNotBlank()) onAdd(text.trim())
+        text = ""
+    }
+    androidx.compose.material3.TextField(
+        text, { text = it },
+        placeholder = { Text("Add something to ask about…") },
+        leadingIcon = { Icon(Icons.Rounded.Add, null) },
+        trailingIcon = if (text.isNotBlank()) {
+            { IconButton(onClick = submit) { Icon(Icons.Rounded.Check, "Add") } }
+        } else null,
+        singleLine = true,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+            imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() }),
+        colors = androidx.compose.material3.TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

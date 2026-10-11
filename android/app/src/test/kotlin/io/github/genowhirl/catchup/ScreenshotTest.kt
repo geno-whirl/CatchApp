@@ -87,7 +87,7 @@ class ScreenshotTest {
     @Test fun person() = shot("04-person") {
         PersonScreen(
             people.first { it.id == "maya-patel" }, now.toLocalDate(),
-            PersonActions(noop, noop, noop, noop, {}, {}, noop, { _, _ -> }, {}, {}, {}, {}, { _, _ -> }),
+            PersonActions(noop, noop, noop, noop, {}, {}, noop, { _, _ -> }, {}, {}, {}, {}, {}, { _, _ -> }),
         )
     }
 

@@ -342,6 +342,7 @@ fun CatchUpApp(vm: AppViewModel) {
                             plan = { plan -> sheet = Sheet.PlanIt(p.id, plan?.key) },
                             keepInTouch = { sheet = Sheet.KeepInTouch(p.id) },
                             toggleFollowUp = { text, done -> vm.apply(Op.SetFollowUp(p.path, text, done)) },
+                            addFollowUp = { text -> vm.apply(Op.AddFollowUp(p.path, text)) },
                             call = { context.call(it) },
                             text = { context.text(it) },
                             whatsapp = { context.whatsapp(it) },

@@ -81,6 +81,10 @@ sealed interface Op {
     @Serializable @SerialName("patch")
     data class Patch(override val path: String, val patch: PersonPatch) : Op
 
+    /** Adds a `- [ ]` item to the notes: something to bring up next time. */
+    @Serializable @SerialName("addFollowUp")
+    data class AddFollowUp(override val path: String, val text: String) : Op
+
     /** Replaces the free-form notes, keeping the `## Log` section as it is. */
     @Serializable @SerialName("notes")
     data class SetNotes(override val path: String, val notes: String) : Op
@@ -179,6 +183,23 @@ internal fun insertInteraction(body: String, entry: InteractionInput): String {
     repeat(end - at) { lines.removeAt(at) }
     lines.addAll(at, block)
     val result = lines.joinToString("\n")
+    return if (result.endsWith("\n")) result else "$result\n"
+}
+
+/** Adds `- [ ] text` at the end of the notes, i.e. just before `## Log` (or at the end). */
+internal fun addTask(body: String, text: String): String {
+    val lines = body.split("\n").toMutableList()
+    val log = lines.indexOfFirst { LOG_SECTION.matches(it.trimEnd()) }
+    var at = if (log == -1) lines.size else log
+    while (at > 0 && lines[at - 1].isBlank()) at--
+    val afterTask = at > 0 && TASK.matches(lines[at - 1])
+    val block = mutableListOf<String>()
+    if (at > 0 && !afterTask) block += ""
+    block += "- [ ] $text"
+    if (log != -1 && lines.getOrNull(at)?.isBlank() != true) block += ""
+    lines.addAll(at, block)
+    var result = lines.joinToString("\n")
+    if (!result.startsWith("\n")) result = "\n" + result
     return if (result.endsWith("\n")) result else "$result\n"
 }
 
@@ -294,6 +315,7 @@ fun applyOp(files: Map<String, String>, op: Op): Pair<Map<String, String>, Strin
             doc.setPlans(plans)
         }
         is Op.Patch -> doc.applyPatch(op.patch)
+        is Op.AddFollowUp -> doc.body = addTask(doc.body, op.text.trim())
         is Op.SetNotes -> {
             val (_, log) = splitLog(doc.body)
             val notes = op.notes.trim()
@@ -323,6 +345,7 @@ fun describeOp(op: Op): String {
         is Op.RemovePlan -> "Cancel plan with $who (${op.key})"
         is Op.Patch -> "Import details for $who"
         is Op.SetNotes -> "Edit notes for $who"
+        is Op.AddFollowUp -> "Add follow-up for $who"
     }
 }
 

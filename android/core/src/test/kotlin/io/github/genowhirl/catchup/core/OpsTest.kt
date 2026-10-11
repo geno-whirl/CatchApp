@@ -147,6 +147,18 @@ class OpsTest {
         assertTrue("Book the gym" in p.openFollowUps)
     }
 
+    @Test fun `follow-ups can be added without logging`() {
+        val out = run(Op.AddFollowUp(path, "Ask about the new flat"))
+        val p = parsePerson("m", out).person!!
+        assertEquals(listOf("Ask about the new flat", "Ask about Portland"), p.openFollowUps)
+        assertTrue(out.contains("Loves matcha.\n\n- [ ] Ask about the new flat\n\n## Log"), out)
+        assertTrue(out.endsWith("## Gift ideas\n- Chalk bag\n"), out)
+        val again = applyOp(mapOf(path to out), Op.AddFollowUp(path, "Bring the book")).first.getValue(path)
+        assertTrue(again.contains("- [ ] Ask about the new flat\n- [ ] Bring the book"), again)
+        val fresh = applyOp(mapOf("people/x.md" to "---\nname: X\n---\n"), Op.AddFollowUp("people/x.md", "Hi")).first.getValue("people/x.md")
+        assertEquals("---\nname: X\n---\n\n- [ ] Hi\n", fresh)
+    }
+
     @Test fun `unreadable files are never rewritten`() {
         val broken = mapOf(path to "---\nname: [oops\n---\n")
         assertEquals(broken, applyOp(broken, Op.SetFields(path, mapOf("a" to JsonPrimitive("b")))).first)
