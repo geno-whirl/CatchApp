@@ -137,6 +137,16 @@ class OpsTest {
         assertEquals(emptyMap(), applyOps(files, listOf(Op.Delete(path), Op.SetFollowUp(path, "Send photos", false))))
     }
 
+    @Test fun `notes can be rewritten without touching the log`() {
+        val out = run(Op.SetNotes(path, "Loves matcha and climbing.\n\n- [ ] Book the gym"))
+        assertTrue(out.contains("---\n\nLoves matcha and climbing.\n\n- [ ] Book the gym\n\n## Log\n\n### 2026-08-30 · Video call"), out)
+        // Sections after the log count as notes (the edit form shows them), so they're replaced too.
+        assertTrue(out.endsWith("- [x] Send photos\n"), out)
+        val p = parsePerson("m", out).person!!
+        assertEquals(2, p.interactions.size)
+        assertTrue("Book the gym" in p.openFollowUps)
+    }
+
     @Test fun `unreadable files are never rewritten`() {
         val broken = mapOf(path to "---\nname: [oops\n---\n")
         assertEquals(broken, applyOp(broken, Op.SetFields(path, mapOf("a" to JsonPrimitive("b")))).first)

@@ -80,6 +80,10 @@ sealed interface Op {
 
     @Serializable @SerialName("patch")
     data class Patch(override val path: String, val patch: PersonPatch) : Op
+
+    /** Replaces the free-form notes, keeping the `## Log` section as it is. */
+    @Serializable @SerialName("notes")
+    data class SetNotes(override val path: String, val notes: String) : Op
 }
 
 /** JSON (op payloads) → the plain values the YAML writer understands. */
@@ -290,6 +294,13 @@ fun applyOp(files: Map<String, String>, op: Op): Pair<Map<String, String>, Strin
             doc.setPlans(plans)
         }
         is Op.Patch -> doc.applyPatch(op.patch)
+        is Op.SetNotes -> {
+            val (_, log) = splitLog(doc.body)
+            val notes = op.notes.trim()
+            val logText = log.joinToString("\n").trim()
+            doc.body = listOf(notes, logText).filter { it.isNotEmpty() }.joinToString("\n\n", prefix = "\n", postfix = "\n")
+                .let { if (it.isBlank()) "" else it }
+        }
         is Op.Create, is Op.Replace, is Op.Delete -> error("handled above")
     }
     val rendered = doc.render()
@@ -311,6 +322,7 @@ fun describeOp(op: Op): String {
         is Op.SavePlan -> "Plan ${op.plan.kind?.lowercase() ?: "catch-up"} with $who (${op.plan.at})"
         is Op.RemovePlan -> "Cancel plan with $who (${op.key})"
         is Op.Patch -> "Import details for $who"
+        is Op.SetNotes -> "Edit notes for $who"
     }
 }
 
