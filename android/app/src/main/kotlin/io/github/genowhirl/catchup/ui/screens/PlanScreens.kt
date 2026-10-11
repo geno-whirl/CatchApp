@@ -260,7 +260,7 @@ fun PlanWeekScreen(
                     items(days) { d ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.width(72.dp)) {
-                                Text(relativeDay(d, today).let { if (it.length > 9) weekday(d) else it }, style = MaterialTheme.typography.titleSmall)
+                                Text(if (d == today) "Today" else weekday(d), style = MaterialTheme.typography.titleSmall)
                                 Text(shortDate(d), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             DayPart.entries.forEach { part ->
@@ -312,7 +312,12 @@ fun PlanWeekScreen(
                                 if (keepAsUsual) onRememberUsual(free.map { it.date.dayOfWeek to it.part }.toSet())
                                 val plan = planWeek(people, today, start, free.toList(), target)
                                 proposals.clear(); proposals.addAll(plan.proposals)
-                                more.clear(); more.addAll(plan.more)
+                                // Suggestions first, then everyone else (longest since contact first).
+                                val chosen = plan.proposals.map { it.person.id }.toSet() + plan.more.map { it.person.id }
+                                val others = people.filter { it.id !in chosen }
+                                    .sortedBy { it.lastContacted ?: java.time.LocalDate.MIN }
+                                    .map { Suggestion(it, emptyList(), 0.0) }
+                                more.clear(); more.addAll(plan.more + others)
                                 step = Step.PLAN
                             },
                             enabled = free.isNotEmpty(),
@@ -446,7 +451,15 @@ fun PlanWeekScreen(
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(s.person.name, style = MaterialTheme.typography.titleMedium)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { s.reasons.take(1).forEach { ReasonPill(it, today) } }
+                            if (s.reasons.isNotEmpty()) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { s.reasons.take(1).forEach { ReasonPill(it, today) } }
+                            } else {
+                                Text(
+                                    s.person.lastContacted?.let { "Last in touch ${io.github.genowhirl.catchup.core.formatDaysAgo(io.github.genowhirl.catchup.core.daysBetween(it, today))}" } ?: "Not in touch yet",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }

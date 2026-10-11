@@ -39,9 +39,14 @@ private val PALETTE = listOf(
 )
 
 fun avatarColors(name: String): Pair<Color, Color> {
-    var hash = 0
-    for (c in name) hash = hash * 31 + c.code
-    return PALETTE[Math.floorMod(hash, PALETTE.size)]
+    // FNV-1a, folded: neighbouring names land on different colours.
+    var h = 0x811c9dc5.toInt()
+    for (c in name) {
+        h = h xor c.code
+        h *= 0x01000193
+    }
+    h = h xor (h ushr 16)
+    return PALETTE[Math.floorMod(h ushr 8, PALETTE.size)]
 }
 
 fun initials(name: String): String {

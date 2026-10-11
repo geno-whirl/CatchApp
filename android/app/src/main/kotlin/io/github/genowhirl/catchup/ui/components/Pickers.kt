@@ -59,14 +59,20 @@ fun DateChip(date: LocalDate, today: LocalDate, onChange: (LocalDate) -> Unit, m
 
 /** A chip showing an optional time; tapping opens a clock picker. */
 @Composable
-fun TimeChip(time: LocalTime?, onChange: (LocalTime?) -> Unit, modifier: Modifier = Modifier, defaultTime: LocalTime = LocalTime.of(19, 0)) {
+fun TimeChip(
+    time: LocalTime?,
+    onChange: (LocalTime?) -> Unit,
+    modifier: Modifier = Modifier,
+    defaultTime: LocalTime = LocalTime.of(19, 0),
+    clearable: Boolean = true,
+) {
     var open by remember { mutableStateOf(false) }
     val context = LocalContext.current
     AssistChip(
         onClick = { open = true },
         label = { Text(time?.format(When.HH_MM) ?: "Add time") },
         leadingIcon = { Icon(Icons.Rounded.Schedule, null, Modifier.size(AssistChipDefaults.IconSize)) },
-        trailingIcon = if (time != null) {
+        trailingIcon = if (time != null && clearable) {
             { Icon(Icons.Rounded.Close, "Remove time", Modifier.size(AssistChipDefaults.IconSize).clickableNoRipple { onChange(null) }) }
         } else null,
         modifier = modifier,

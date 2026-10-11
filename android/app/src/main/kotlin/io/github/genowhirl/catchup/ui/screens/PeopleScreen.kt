@@ -190,19 +190,12 @@ fun PeopleScreen(
 fun PersonRow(p: Person, today: LocalDate, onClick: () -> Unit) {
     val status = statusText(p, today)
     val subtitle = listOfNotNull(
+        p.nickname?.let { "“$it”" },
         p.relationship,
         p.lastContacted?.let { formatDaysAgo(daysBetween(it, today)).replaceFirstChar { c -> c.uppercase() } } ?: "Not in touch yet",
     ).joinToString(" · ")
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                p.nickname?.let {
-                    Spacer(Modifier.width(6.dp))
-                    Text("“$it”", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                }
-            }
-        },
+        headlineContent = { Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingContent = { Avatar(p.name, 48.dp, p.priority) },
         trailingContent = if (status != null) {

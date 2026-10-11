@@ -1,11 +1,10 @@
 package io.github.genowhirl.catchup
 
 import android.app.Application
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasScrollAction
@@ -70,7 +69,7 @@ class ScreenshotTest {
     private fun shot(name: String, dark: Boolean = false, content: @Composable () -> Unit) {
         compose.setContent {
             CatchUpTheme(dark = dark) {
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { content() }
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
             }
         }
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/$name.png")
@@ -85,6 +84,14 @@ class ScreenshotTest {
     @Test fun peopleList() = shot("03-people") { PeopleScreen(people, now.toLocalDate(), {}, noop, noop) }
 
     @Test fun person() = shot("04-person") {
+        PersonScreen(
+            people.first { it.id == "maya-patel" }, now.toLocalDate(),
+            PersonActions(noop, noop, noop, noop, {}, {}, noop, { _, _ -> }, {}, {}, {}, {}, {}, { _, _ -> }),
+        )
+    }
+
+    @Config(qualifiers = "w400dp-h2200dp-xxhdpi")
+    @Test fun personFull() = shot("04b-person-full") {
         PersonScreen(
             people.first { it.id == "maya-patel" }, now.toLocalDate(),
             PersonActions(noop, noop, noop, noop, {}, {}, noop, { _, _ -> }, {}, {}, {}, {}, {}, { _, _ -> }),

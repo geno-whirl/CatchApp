@@ -137,7 +137,7 @@ fun OnboardingScreen(notificationsAllowed: Boolean, driveConnected: Boolean, act
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("at", style = MaterialTheme.typography.bodyLarge)
                             Spacer(Modifier.width(12.dp))
-                            TimeChip(time, { if (it != null) time = it })
+                            TimeChip(time, { if (it != null) time = it }, clearable = false)
                         }
                         Spacer(Modifier.height(16.dp))
                         Text("Catch-ups per week", style = MaterialTheme.typography.titleSmall)

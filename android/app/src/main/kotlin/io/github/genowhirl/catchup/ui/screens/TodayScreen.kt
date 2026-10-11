@@ -94,10 +94,11 @@ fun TodayScreen(people: List<Person>, now: LocalDateTime, userName: String, week
     val awaiting = awaitingNotes(people, now).filter { !it.plan.at.date.isBefore(today.minusDays(14)) }
     val coming = upcomingPlans(people, today, 21).filter { it.plan.at.dateTime.isAfter(now) || it.plan.at.time == null }
     val birthdays = upcomingBirthdays(people, today, 30)
-    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    // The week being planned: on Sunday evening that's the coming one.
+    val monday = io.github.genowhirl.catchup.core.planningWeekStart(now).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val sunday = monday.plusDays(6)
     val doneThisWeek = people.sumOf { p -> p.interactions.count { !it.date.isBefore(monday) && !it.date.isAfter(today) } }
-    val plannedThisWeek = coming.count { !it.plan.at.date.isAfter(sunday) }
+    val plannedThisWeek = upcomingPlans(people, today, 7).count { !it.plan.at.date.isBefore(monday) && !it.plan.at.date.isAfter(sunday) }
 
     LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp + contentPadding.calculateBottomPadding())) {
         item {
@@ -246,7 +247,7 @@ private fun WeekCard(done: Int, planned: Int, goal: Int, onPlan: () -> Unit) {
             }
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
-                Text("This week", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(if (monday.isAfter(today)) "Your week ahead" else "This week", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
                     when {
                         total >= goal && goal > 0 -> "You've hit your goal. Lovely."

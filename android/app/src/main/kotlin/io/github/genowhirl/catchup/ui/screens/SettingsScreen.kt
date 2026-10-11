@@ -152,7 +152,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("At", style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.width(12.dp))
-                        TimeChip(settings.planningTime, { t -> if (t != null) actions.update { it.copy(planningTime = t) } })
+                        TimeChip(settings.planningTime, { t -> if (t != null) actions.update { it.copy(planningTime = t) } }, clearable = false)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -180,7 +180,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 Toggle("Morning summary", "Birthdays and plans for the day.", settings.morningDigest) { v -> actions.update { it.copy(morningDigest = v) } }
                 if (settings.morningDigest) {
-                    TimeChip(settings.digestTime, { t -> if (t != null) actions.update { it.copy(digestTime = t) } })
+                    TimeChip(settings.digestTime, { t -> if (t != null) actions.update { it.copy(digestTime = t) } }, clearable = false)
                 }
             }
         }
