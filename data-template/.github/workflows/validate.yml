@@ -1,0 +1,32 @@
+name: Validate
+
+# Checks every people/*.md file against the CatchUp format, so edits made by hand or by
+# an AI assistant can't silently break the app.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: data
+      - uses: actions/checkout@v4
+        with:
+          repository: geno-whirl/CatchUp
+          path: app
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+        working-directory: app
+      - run: npm run validate -- "$GITHUB_WORKSPACE/data"
+        working-directory: app

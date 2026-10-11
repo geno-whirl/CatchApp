@@ -1,7 +1,7 @@
 # My CatchUp data
 
 The people I want to keep in touch with, one Markdown file each in [`people/`](people).
-Read and written by the [CatchUp](https://github.com/geno-whirl/CatchApp) app — and by AI
+Read and written by the [CatchUp](https://github.com/geno-whirl/CatchUp) app — and by AI
 assistants, see [AGENTS.md](AGENTS.md).
 
 **Keep this repository private.**
