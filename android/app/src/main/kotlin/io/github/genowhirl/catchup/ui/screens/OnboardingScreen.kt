@@ -140,7 +140,8 @@ fun OnboardingScreen(notificationsAllowed: Boolean, driveConnected: Boolean, act
                             TimeChip(time, { if (it != null) time = it }, clearable = false)
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text("Catch-ups per week", style = MaterialTheme.typography.titleSmall)
+                        Text("Weekly goal", style = MaterialTheme.typography.titleSmall)
+                        Text("How many people the planner suggests each week.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             (1..7).forEach { n -> FilterChip(goal == n, { goal = n }, { Text("$n") }) }
                         }

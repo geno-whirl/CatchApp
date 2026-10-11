@@ -162,7 +162,8 @@ fun SettingsScreen(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Catch-ups per week", style = MaterialTheme.typography.bodyLarge)
+                Text("Weekly goal", style = MaterialTheme.typography.bodyLarge)
+                Text("How many people the planner suggests each week.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 ChoiceRow((1..7).toList(), settings.weeklyGoal, { "$it" }) { n -> actions.update { it.copy(weeklyGoal = n) } }
             }
