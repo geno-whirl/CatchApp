@@ -1106,3 +1106,12 @@ legend {
     transition: none !important;
   }
 }
+
+.source-card .picker-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.source-card .or {
+  margin: 14px 0 0;
+}

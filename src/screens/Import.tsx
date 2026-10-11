@@ -20,7 +20,7 @@ interface SourceInfo {
 const SOURCES: SourceInfo[] = [
   {
     id: "contacts",
-    title: "Contacts file",
+    title: "Contacts",
     blurb: "Names, birthdays, phone numbers, emails and family from your address book.",
     accept: ".vcf,text/vcard,text/x-vcard",
     how: (
@@ -219,26 +219,39 @@ export function Import() {
         nothing you've already written is overwritten.
       </p>
 
-      {canPickContacts() && (
-        <button className="panel source-card" onClick={() => { setSource(SOURCES[0]); void load(async () => ({ candidates: await pickContacts(), notes: [] })); }}>
-          <strong>Pick from phone contacts</strong>
-          <span className="muted small">Choose people straight from your address book.</span>
-        </button>
-      )}
-
-      {SOURCES.map((s) => (
-        <details key={s.id} className="panel source-card" open={source?.id === s.id} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setSource(s)}>
-          <summary>
-            <strong>{s.title}</strong>
-            <span className="muted small block">{s.blurb}</span>
-          </summary>
-          <div className="how">{s.how}</div>
-          <label className="button primary file-button">
-            {busy && source?.id === s.id ? "Reading…" : "Choose file"}
-            <input type="file" accept={s.accept} multiple onChange={(e) => { onFiles(s, e.target.files); e.target.value = ""; }} hidden />
-          </label>
-        </details>
-      ))}
+      {SOURCES.map((s) => {
+        // On Android Chrome, contacts can be picked directly; a .vcf file is the fallback.
+        const picker = s.id === "contacts" && canPickContacts();
+        const reading = busy && source?.id === s.id;
+        return (
+          <details key={s.id} className="panel source-card" open={source?.id === s.id} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setSource(s)}>
+            <summary>
+              <strong>{s.title}</strong>
+              <span className="muted small block">{s.blurb}</span>
+            </summary>
+            {picker && (
+              <button
+                className="button primary picker-button"
+                disabled={reading}
+                onClick={() => {
+                  setSource(s);
+                  void load(async () => ({ candidates: await pickContacts(), notes: [] }));
+                }}
+              >
+                {reading ? "Reading…" : "Pick from your contacts"}
+              </button>
+            )}
+            {picker ? (
+              <p className="small muted or">Or import a contacts file (.vcf):</p>
+            ) : null}
+            <div className="how">{s.how}</div>
+            <label className={`button file-button ${picker ? "" : "primary"}`}>
+              {reading && !picker ? "Reading…" : picker ? "Choose .vcf file" : "Choose file"}
+              <input type="file" accept={s.accept} multiple onChange={(e) => { onFiles(s, e.target.files); e.target.value = ""; }} hidden />
+            </label>
+          </details>
+        );
+      })}
       {error && <p className="error">Couldn't read that file: {error}</p>}
     </div>
   );
