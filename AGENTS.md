@@ -1,10 +1,22 @@
 # Working on CatchUp
 
-CatchUp helps someone keep in touch with friends and family. It's an installable mobile
-web app (PWA). People are plain Markdown files kept **outside this repo** — in the user's
-private data repository (seeded from `data-template/`) or on their phone.
+CatchUp helps someone keep in touch with friends and family. There are two apps over the
+same data: the **native Android app** in `android/` (Kotlin + Jetpack Compose; see
+[android/README.md](android/README.md)) and the original web app (PWA) in `src/`. People
+are plain Markdown files kept **outside this repo** — in the user's private data repository
+(seeded from `data-template/`), in Google Drive, or on their phone.
 
-## Layout
+## Android (`android/`)
+
+- `core/` — pure Kotlin, the source of truth for the format and app logic: `PersonFile.kt`
+  (parse/write), `Ops.kt` (edits), `Agenda.kt` (suggestions, weekly planner),
+  `Reminders.kt`, `sync/` (engine, GitHub, Google Drive), `imports/`. Test with
+  `gradle -PcoreOnly :core:test` (no Android SDK needed).
+- `app/` — Compose UI (`ui/screens`, `ui/sheets`, `ui/components`), notifications and
+  alarms (`notify/`), settings and repository (`data/`). Screenshot tests:
+  `./gradlew :app:recordRoborazziDebug`.
+
+## Web app (`src/`)
 
 - `src/lib/` — framework-free logic, all unit-tested:
   - `person.ts` parses a file (format: [docs/data-format.md](docs/data-format.md)).
@@ -24,8 +36,10 @@ private data repository (seeded from `data-template/`) or on their phone.
 
 ## Rules
 
-- If you change the file format, update `src/lib/person.ts`, `docs/data-format.md`,
-  `data-template/AGENTS.md` and `data-template/people/_template.md` together.
+- If you change the file format, update `android/core` (PersonFile.kt), `src/lib/person.ts`,
+  `docs/data-format.md`, `data-template/AGENTS.md` and `data-template/people/_template.md`
+  together.
 - Importers must never overwrite existing data (use `patch`), and must not keep message text.
 - Never put real personal data in this repository.
-- Checks: `npm run typecheck`, `npm test`, `npm run validate`, `npm run build`.
+- Checks: `npm run typecheck`, `npm test`, `npm run validate`, `npm run build`; for Android,
+  the `Android` GitHub workflow (core tests, app tests + screenshots, APK).
