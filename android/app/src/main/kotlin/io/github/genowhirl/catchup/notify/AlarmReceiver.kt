@@ -42,11 +42,16 @@ class AlarmReceiver : BroadcastReceiver() {
         }
 
         when (intent.getStringExtra(Scheduler.EXTRA_TYPE)) {
-            Scheduler.TYPE_REMINDER -> Notifications.show(
-                context, Scheduler.notificationId(person, plan), Notifications.PLANS,
-                intent.getStringExtra(Scheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra(Scheduler.EXTRA_TEXT).orEmpty(),
-                "person/$person",
-            )
+            Scheduler.TYPE_REMINDER -> {
+                // Skip plans that were moved or cancelled since the alarm was set.
+                val d = repo.awaitReady()
+                if (d.people.none { p -> p.id == person && p.plans.any { it.key == plan } }) return
+                Notifications.show(
+                    context, Scheduler.notificationId(person, plan), Notifications.PLANS,
+                    intent.getStringExtra(Scheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra(Scheduler.EXTRA_TEXT).orEmpty(),
+                    "person/$person",
+                )
+            }
             Scheduler.TYPE_FOLLOW_UP -> {
                 // Skip if it was already logged or removed.
                 val d = repo.awaitReady()

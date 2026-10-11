@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -96,6 +99,7 @@ class ScreenshotTest {
                 noop, { _, _ -> }, {}, { _, _ -> }, { _, _ -> },
             )
         }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Suggest who to see"))
         compose.onNodeWithText("Suggest who to see").performClick()
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/06-plan-week-suggestions.png")

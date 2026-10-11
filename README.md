@@ -2,6 +2,11 @@
 
 A simple, no-fuss app for keeping in touch with friends and family.
 
+> **New: native Android app** in [`android/`](android) — weekly planning, reminders before
+> plans, "how did it go?" follow-ups, and sync with Google Drive or GitHub. Install the
+> latest test build from **Releases → CatchUp for Android**. The web app below still works
+> with the same files.
+
 ![CatchUp on a phone: Today, a person, and logging a catch-up](docs/screenshot.png)
 
 - **Today** — who to reach out to and why: birthdays (theirs and their family's), people

@@ -11,9 +11,15 @@ Follow [AGENTS.md](../../../AGENTS.md) for the file format.
    - Conversation → new `### YYYY-MM-DD · <type>` entry at the top of `## Log`, with bullet
      notes and `- [ ]` items for things to ask next time. Use today's date unless told otherwise.
    - Covered follow-ups → change `- [ ]` to `- [x]`.
-   - Planned meeting → set `next_catchup`.
+   - Planned meeting → add `{ when, what, where, remind }` to `plans` (sorted by date).
    - New facts (birthday, kids, new city) → frontmatter fields, not the log.
 3. Show the user a one-line summary of what changed, then commit.
 
 When asked who to reach out to, rank people by: birthday within a week, then how far past
-their `cadence` they are, then open follow-ups. Give one line of context per person.
+their `cadence` (or `next_contact`) they are — weighting `priority: high` people up — then
+open follow-ups. Give one line of context per person.
+
+**"Plan my week"**: ask when they're free (e.g. "Tue evening, Sat afternoon") and how many
+catch-ups they want, then propose who goes in which slot (birthdays on or near the day;
+people they last *called* get a call, people they last *met* a meetup). Only after they
+agree, add the `plans` entries.
