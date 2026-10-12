@@ -22,4 +22,5 @@ open follow-ups. Give one line of context per person.
 **"Plan my week"**: ask when they're free (e.g. "Tue evening, Sat afternoon") and how many
 catch-ups they want, then propose who goes in which slot (birthdays on or near the day;
 people they last *called* get a call, people they last *met* a meetup). Only after they
-agree, add the `plans` entries.
+agree, add the `plans` entries. Several people can share a slot. If they want invitations,
+draft them in each person's `language` (English if it isn't set).

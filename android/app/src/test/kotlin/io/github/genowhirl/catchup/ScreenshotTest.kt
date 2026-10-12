@@ -20,9 +20,12 @@ import io.github.genowhirl.catchup.core.DayPart
 import io.github.genowhirl.catchup.core.Op
 import io.github.genowhirl.catchup.core.PlanInput
 import io.github.genowhirl.catchup.core.applyOps
+import io.github.genowhirl.catchup.core.imports.Candidate
+import io.github.genowhirl.catchup.core.imports.ImportSource
 import io.github.genowhirl.catchup.core.parseAll
 import io.github.genowhirl.catchup.core.sync.SyncState
 import io.github.genowhirl.catchup.data.AppSettings
+import io.github.genowhirl.catchup.ui.screens.EditPersonScreen
 import io.github.genowhirl.catchup.ui.screens.OnboardingActions
 import io.github.genowhirl.catchup.ui.screens.OnboardingScreen
 import io.github.genowhirl.catchup.ui.screens.PeopleScreen
@@ -109,7 +112,21 @@ class ScreenshotTest {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Suggest who to see"))
         compose.onNodeWithText("Suggest who to see").performClick()
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("build/outputs/roborazzi/06-plan-week-suggestions.png")
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/06-plan-week-board.png")
+        compose.onNodeWithText("Priority").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/06b-plan-week-by-priority.png")
+    }
+
+    @Config(qualifiers = "w400dp-h1900dp-xxhdpi")
+    @Test fun newFromContact() = shot("10-new-from-contact") {
+        EditPersonScreen(
+            null, noop,
+            Candidate(
+                "Sam Rivera", ImportSource.CONTACTS, birthday = "1992-03-14",
+                contact = mutableMapOf("phone" to "+1 555 0100", "email" to "sam@example.com"),
+            ),
+        ) { _, _, _ -> }
     }
 
     @Test fun plans() = shot("07-plans") { PlansTab(people, now.toLocalDate(), noop, { _, _ -> }, noop) }
@@ -117,7 +134,7 @@ class ScreenshotTest {
     @Test fun settings() = shot("08-settings") {
         SettingsScreen(
             AppSettings(), SyncState(loaded = true), emptyMap(), notificationsAllowed = true, exactAlarmsAllowed = true,
-            SettingsActions({}, noop, noop, noop, noop, noop, noop, {}),
+            SettingsActions({}, noop, noop, noop, noop, noop, noop, noop, {}),
         )
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Warning
@@ -61,6 +62,7 @@ class SettingsActions(
     val storage: () -> Unit,
     val import: () -> Unit,
     val backup: () -> Unit,
+    val restore: () -> Unit,
     val requestNotifications: () -> Unit,
     val requestExactAlarms: () -> Unit,
     val openFile: (String) -> Unit,
@@ -132,6 +134,7 @@ fun SettingsScreen(
                 if (settings.storage != Storage.Local) Row_(Icons.Rounded.Sync, "Sync now", null, onClick = actions.syncNow)
                 Row_(Icons.Rounded.Download, "Import people", "Contacts, WhatsApp, Facebook, Instagram", onClick = actions.import)
                 Row_(Icons.Rounded.Backup, "Export a backup", "All people as Markdown files in a .zip", onClick = actions.backup)
+                Row_(Icons.Rounded.SettingsBackupRestore, "Restore a backup", "Add people back from a backup .zip", onClick = actions.restore)
             }
         }
         if (problems.isNotEmpty()) {

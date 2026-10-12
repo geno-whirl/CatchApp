@@ -27,6 +27,7 @@ Only `name` is required. Leave out fields you don't know rather than leaving the
 | `tags` | list | `[college, climbing]` | Lowercase, hyphenated. Used for filtering and search. |
 | `birthday` | date | `1991-10-19` or `10-19` | `YYYY-MM-DD`, or `MM-DD` when the year is unknown. |
 | `location` | text | `Seattle, USA` | |
+| `language` | language tag | `es` | The language to write invitations in: a tag like `es`, `de` or `pt-BR` (names like `Spanish` are understood too). |
 | `contact` | map | see below | Any keys. `phone`, `email` and URLs become links. **Quote phone numbers.** |
 | `family` | list | see below | Partner, kids, parents, pets… |
 | `how_we_met` | text | `Freshman-year roommates.` | |

@@ -17,6 +17,7 @@ Only `name` is required.
 | --- | --- |
 | `name`, `nickname`, `relationship`, `location`, `how_we_met` | text |
 | `priority` | `high`, `medium` or `low` — how important keeping in touch is |
+| `language` | language for invitations, as a tag: `en`, `es`, `de`, `pt-BR`… |
 | `tags` | list, lowercase-hyphenated: `[college, book-club]` |
 | `birthday` | `YYYY-MM-DD`, or `MM-DD` if the year is unknown |
 | `contact` | map of any keys; `phone`, `email`, `whatsapp`, `instagram`… **Quote phone numbers.** |

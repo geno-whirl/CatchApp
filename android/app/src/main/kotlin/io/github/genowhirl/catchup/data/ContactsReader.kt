@@ -9,6 +9,7 @@ import android.provider.ContactsContract.CommonDataKinds.Organization
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.provider.ContactsContract.CommonDataKinds.Relation
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal
+import android.provider.ContactsContract.Contacts
 import android.provider.ContactsContract.Data
 import io.github.genowhirl.catchup.core.imports.Candidate
 import io.github.genowhirl.catchup.core.imports.ImportSource
@@ -23,7 +24,14 @@ object ContactsReader {
         Relation.TYPE_RELATIVE to "relative", Relation.TYPE_DOMESTIC_PARTNER to "partner",
     )
 
-    fun read(context: Context): List<Candidate> {
+    /** One contact, e.g. from the system contact picker: everything we can use, even just a name. */
+    fun readOne(context: Context, contactId: Long): Candidate? = read(context, contactId).firstOrNull()
+
+    fun read(context: Context): List<Candidate> =
+        // People with only a name aren't worth importing from a phone book.
+        read(context, null).filter { it.contact.isNotEmpty() || it.birthday != null }
+
+    private fun read(context: Context, contactId: Long?): List<Candidate> {
         val byContact = linkedMapOf<Long, Candidate>()
         val projection = arrayOf(
             Data.CONTACT_ID, Data.DISPLAY_NAME_PRIMARY, Data.MIMETYPE,
@@ -33,8 +41,9 @@ object ContactsReader {
             Phone.CONTENT_ITEM_TYPE, Email.CONTENT_ITEM_TYPE, Event.CONTENT_ITEM_TYPE, Nickname.CONTENT_ITEM_TYPE,
             Note.CONTENT_ITEM_TYPE, Organization.CONTENT_ITEM_TYPE, Relation.CONTENT_ITEM_TYPE, StructuredPostal.CONTENT_ITEM_TYPE,
         )
-        val selection = "${Data.MIMETYPE} IN (${types.joinToString(",") { "?" }})"
-        context.contentResolver.query(Data.CONTENT_URI, projection, selection, types.toTypedArray(), "${Data.DISPLAY_NAME_PRIMARY} COLLATE NOCASE")?.use { c ->
+        val selection = "${Data.MIMETYPE} IN (${types.joinToString(",") { "?" }})" + if (contactId != null) " AND ${Data.CONTACT_ID} = ?" else ""
+        val args = types + listOfNotNull(contactId?.toString())
+        context.contentResolver.query(Data.CONTENT_URI, projection, selection, args.toTypedArray(), "${Data.DISPLAY_NAME_PRIMARY} COLLATE NOCASE")?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getLong(0)
                 val name = c.getString(1)?.trim().orEmpty()
@@ -62,7 +71,12 @@ object ContactsReader {
                 }
             }
         }
-        // People with only a name aren't worth importing from a phone book.
-        return byContact.values.filter { it.contact.isNotEmpty() || it.birthday != null }
+        return byContact.values.toList()
     }
+
+    /** The contact's id and name from a picker result (`content://com.android.contacts/contacts/…`). */
+    fun idAndName(context: Context, uri: android.net.Uri): Pair<Long, String>? =
+        context.contentResolver.query(uri, arrayOf(Contacts._ID, Contacts.DISPLAY_NAME_PRIMARY), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getLong(0) to c.getString(1).orEmpty() else null
+        }
 }

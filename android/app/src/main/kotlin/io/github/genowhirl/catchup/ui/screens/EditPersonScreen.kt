@@ -1,5 +1,14 @@
 package io.github.genowhirl.catchup.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import io.github.genowhirl.catchup.core.Languages
+import io.github.genowhirl.catchup.core.imports.Candidate
+import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -66,23 +75,30 @@ private val RELATIONSHIPS = listOf("family", "friend", "partner", "colleague", "
 
 /** Add someone new, or edit the basics. Anything else lives in "Edit as Markdown". */
 @Composable
-fun EditPersonScreen(person: Person?, onBack: () -> Unit, onSave: (List<Op>, String, String) -> Unit) {
+fun EditPersonScreen(person: Person?, onBack: () -> Unit, draft: Candidate? = null, onSave: (List<Op>, String, String) -> Unit) {
     val today = LocalDate.now()
-    var name by remember { mutableStateOf(person?.name.orEmpty()) }
-    var nickname by remember { mutableStateOf(person?.nickname.orEmpty()) }
+    val draftBirthday = draft?.birthday?.let { Birthday.parse(it) }
+    var name by remember { mutableStateOf(person?.name ?: draft?.name.orEmpty()) }
+    var nickname by remember { mutableStateOf(person?.nickname ?: draft?.nickname.orEmpty()) }
     var relationship by remember { mutableStateOf(person?.relationship.orEmpty()) }
     var priority by remember { mutableStateOf(person?.priority ?: Priority.MEDIUM) }
     var cadence by remember { mutableStateOf(person?.cadence?.label) }
-    var birthday by remember { mutableStateOf(person?.birthday?.let { LocalDate.of(it.year ?: 2000, it.month, it.day) }) }
-    var noYear by remember { mutableStateOf(person?.birthday?.let { it.year == null } ?: false) }
-    var phone by remember { mutableStateOf(person?.contact?.get("phone").orEmpty()) }
-    var email by remember { mutableStateOf(person?.contact?.get("email").orEmpty()) }
-    var location by remember { mutableStateOf(person?.location.orEmpty()) }
+    val knownBirthday = person?.birthday ?: draftBirthday
+    var birthday by remember { mutableStateOf(knownBirthday?.let { LocalDate.of(it.year ?: 2000, it.month, it.day) }) }
+    var noYear by remember { mutableStateOf(knownBirthday?.let { it.year == null } ?: false) }
+    val baseContact = person?.contact ?: draft?.contact.orEmpty()
+    var phone by remember { mutableStateOf(baseContact["phone"].orEmpty()) }
+    var email by remember { mutableStateOf(baseContact["email"].orEmpty()) }
+    var location by remember { mutableStateOf(person?.location ?: draft?.location.orEmpty()) }
+    var language by remember { mutableStateOf(person?.language) }
     var tags by remember { mutableStateOf(person?.tags?.joinToString(", ").orEmpty()) }
     var howWeMet by remember { mutableStateOf(person?.howWeMet.orEmpty()) }
-    var notes by remember { mutableStateOf(person?.notes.orEmpty()) }
+    var notes by remember { mutableStateOf(person?.notes ?: draft?.notes.orEmpty()) }
     val family = remember {
-        mutableStateListOf<FamilyRow>().apply { person?.family?.forEach { add(FamilyRow(it.name, it.relation.orEmpty(), it.birthday?.format().orEmpty())) } }
+        mutableStateListOf<FamilyRow>().apply {
+            person?.family?.forEach { add(FamilyRow(it.name, it.relation.orEmpty(), it.birthday?.format().orEmpty())) }
+            if (person == null) draft?.family?.forEach { (n, r) -> add(FamilyRow(n, r.orEmpty(), "")) }
+        }
     }
 
     fun save() {
@@ -91,7 +107,7 @@ fun EditPersonScreen(person: Person?, onBack: () -> Unit, onSave: (List<Op>, Str
         val familyList = family.filter { it.name.isNotBlank() }.map {
             linkedMapOf("name" to it.name.trim(), "relation" to it.relation.trim().ifEmpty { null }, "birthday" to it.birthday.trim().ifEmpty { null })
         }
-        val contact = LinkedHashMap(person?.contact ?: emptyMap()).apply {
+        val contact = LinkedHashMap(baseContact).apply {
             if (phone.isBlank()) remove("phone") else put("phone", phone.trim())
             if (email.isBlank()) remove("email") else put("email", email.trim())
         }
@@ -103,6 +119,7 @@ fun EditPersonScreen(person: Person?, onBack: () -> Unit, onSave: (List<Op>, Str
             "tags" to tagList,
             "birthday" to bday,
             "location" to location.trim(),
+            "language" to language,
             "contact" to contact,
             "family" to familyList,
             "how_we_met" to howWeMet.trim(),
@@ -166,6 +183,7 @@ fun EditPersonScreen(person: Person?, onBack: () -> Unit, onSave: (List<Op>, Str
             OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, placeholder = { Text("+1 555 123 4567") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
             OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
             OutlinedTextField(location, { location = it }, label = { Text("Lives in") }, placeholder = { Text("City, Country") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = words)
+            LanguageField(language) { language = it }
             OutlinedTextField(tags, { tags = it }, label = { Text("Tags") }, placeholder = { Text("college, climbing") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(howWeMet, { howWeMet = it }, label = { Text("How we met") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
 
@@ -204,6 +222,36 @@ fun EditPersonScreen(person: Person?, onBack: () -> Unit, onSave: (List<Op>, Str
                 Text(if (person == null) "Add ${name.trim().substringBefore(' ').ifEmpty { "person" }}" else "Save")
             }
             Spacer(Modifier.height(24.dp).navigationBarsPadding())
+        }
+    }
+}
+
+/** The language to write invitations in. */
+@Composable
+private fun LanguageField(language: String?, onChange: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Language", style = MaterialTheme.typography.bodyLarge)
+            Text("For invitations", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box {
+            TextButton({ open = true }) {
+                Icon(Icons.Rounded.Translate, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(language?.let { Languages.displayName(it) } ?: "Not set")
+            }
+            DropdownMenu(open, { open = false }, Modifier.heightIn(max = 360.dp)) {
+                DropdownMenuItem({ Text("Not set") }, { onChange(null); open = false })
+                (Languages.COMMON + listOfNotNull(language?.takeIf { it !in Languages.COMMON }))
+                    .sortedBy { Languages.displayName(it) }
+                    .forEach { tag ->
+                        DropdownMenuItem(
+                            { Text(Languages.displayName(tag) + if (Locale.forLanguageTag(tag).language !in Languages.INVITES) " · invites in English" else "") },
+                            { onChange(tag); open = false },
+                        )
+                    }
+            }
         }
     }
 }

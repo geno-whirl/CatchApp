@@ -8,6 +8,7 @@ priority: medium              # high, medium or low: how important keeping in to
 tags: []                      # e.g. [college, hiking, book-club]
 birthday:                     # YYYY-MM-DD, or MM-DD if you don't know the year
 location:                     # City, Country
+language:                     # for invitations: en, es, fr, de, pt-BR…
 contact:
   phone: ""                   # keep phone numbers in quotes
   email: ""

@@ -75,6 +75,7 @@ const KNOWN_KEYS = new Set([
   "last_contacted",
   "next_catchup",
   "priority",
+  "language",
   "next_contact",
   "plans",
 ]);

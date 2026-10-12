@@ -15,9 +15,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -64,6 +66,7 @@ fun PlanSheet(
     onDismiss: () -> Unit,
     onSave: (List<Op>, String, Plan) -> Unit,
     onAddToCalendar: (Plan) -> Unit,
+    onInvite: ((Plan) -> Unit)? = null,
     initialDate: LocalDate? = null,
     initialTime: LocalTime? = null,
     initialKind: String? = null,
@@ -147,6 +150,14 @@ fun PlanSheet(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) { Text(if (existing != null) "Save changes" else "Save plan") }
             if (existing != null) {
+                if (onInvite != null) {
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(onClick = { onInvite(existing) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, null, Modifier.size(16.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text("Send an invite")
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { onAddToCalendar(existing) }, Modifier.weight(1f)) { Text("Add to calendar") }

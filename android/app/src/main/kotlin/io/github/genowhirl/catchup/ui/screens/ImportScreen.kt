@@ -1,5 +1,13 @@
 package io.github.genowhirl.catchup.ui.screens
 
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import io.github.genowhirl.catchup.core.RestorePlan
+import io.github.genowhirl.catchup.core.planRestore
+import io.github.genowhirl.catchup.core.readBackup
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -114,7 +122,13 @@ private fun parse(source: ImportSource, files: List<ImportFile>): ParseOutcome =
 
 /** Brings people in from the phone and from app exports; nothing existing is overwritten. */
 @Composable
-fun ImportScreen(people: List<Person>, files: () -> Map<String, String>, onBack: () -> Unit, onImport: (List<Op>, String) -> Unit) {
+fun ImportScreen(
+    people: List<Person>,
+    files: () -> Map<String, String>,
+    onBack: () -> Unit,
+    startRestore: Boolean = false,
+    onImport: (List<Op>, String) -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -148,18 +162,48 @@ fun ImportScreen(people: List<Person>, files: () -> Map<String, String>, onBack:
         }
     }
 
+    fun read(uri: Uri): Pair<String, ByteArray> {
+        val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: uri.lastPathSegment.orEmpty()
+        return name to (context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0))
+    }
+
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
         val source = pending ?: return@rememberLauncherForActivityResult
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         load {
-            val read = uris.flatMap { uri ->
-                val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                    if (c.moveToFirst()) c.getString(0) else null
-                } ?: uri.lastPathSegment.orEmpty()
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
-                readImportFile(name, bytes)
-            }
+            val read = uris.flatMap { uri -> read(uri).let { (name, bytes) -> readImportFile(name, bytes) } }
             parse(source, read)
+        }
+    }
+
+    // Restoring a backup: whole files, compared with what's here.
+    var restore by remember { mutableStateOf<RestorePlan?>(null) }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        busy = true
+        error = null
+        scope.launch {
+            try {
+                val plan = withContext(Dispatchers.IO) { planRestore(readBackup(uris.map(::read)), files()) }
+                if (plan.total == 0) error = "No people found in that file. Pick the .zip from Export a backup, or .md files from a people folder."
+                else restore = plan
+            } catch (e: Exception) {
+                error = "Couldn't read that: ${e.message}"
+            } finally {
+                busy = false
+            }
+        }
+    }
+    val launchRestore = { pickBackup.launch(arrayOf("application/zip", "text/markdown", "text/plain", "application/octet-stream", "*/*")) }
+    LaunchedEffect(Unit) { if (startRestore) launchRestore() }
+    restore?.let { plan ->
+        RestoreDialog(plan, onDismiss = { restore = null }) { replace ->
+            restore = null
+            val ops = plan.ops(replace)
+            val n = plan.new.size + if (replace) plan.changed.size else 0
+            onImport(ops, "Restored $n ${if (n == 1) "person" else "people"}")
         }
     }
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -208,6 +252,18 @@ fun ImportScreen(people: List<Person>, files: () -> Map<String, String>, onBack:
                         Column(Modifier.weight(1f)) {
                             Text("From your phone's contacts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Text("Names, birthdays, numbers and family. You'll pick who to add.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                }
+            }
+            item {
+                Panel(onClick = { launchRestore() }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.SettingsBackupRestore, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("A CatchUp backup", style = MaterialTheme.typography.titleMedium)
+                            Text("The .zip from Settings → Export a backup, a download of your data repository, or .md files.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -304,4 +360,33 @@ private fun Review(
             }
         }
     }
+}
+
+@Composable
+private fun RestoreDialog(plan: RestorePlan, onDismiss: () -> Unit, onRestore: (replaceChanged: Boolean) -> Unit) {
+    val n = plan.new.size
+    val c = plan.changed.size
+    fun people(k: Int) = if (k == 1) "1 person" else "$k people"
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Restore from backup") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("The backup has ${people(plan.total)}.")
+                if (n > 0) Text("• ${people(n)} not here yet will be added.")
+                if (plan.unchanged > 0) Text("• ${people(plan.unchanged)} already up to date.")
+                if (c > 0) Text("• ${people(c)} differ from what's here. Keep yours, or put back the backup's version (newer notes on them would be lost).")
+                if (plan.unreadable.isNotEmpty()) Text("• ${plan.unreadable.size} file(s) couldn't be read and will be skipped.", color = MaterialTheme.colorScheme.error)
+                if (n == 0 && c == 0) Text("There's nothing to restore.")
+                Spacer(Modifier.height(4.dp))
+                if (n > 0) Button(onClick = { onRestore(false) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (c > 0) "Add ${people(n)}, keep the rest" else "Add ${people(n)}")
+                }
+                if (c > 0) OutlinedButton(onClick = { onRestore(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (n > 0) "Add and restore all" else "Restore ${people(c)}")
+                }
+            }
+        },
+        confirmButton = { TextButton(onDismiss) { Text(if (n == 0 && c == 0) "OK" else "Cancel") } },
+    )
 }

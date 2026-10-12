@@ -69,14 +69,3 @@ fun Context.addToCalendar(person: Person, plan: Plan) {
     ask?.let { intent.putExtra(CalendarContract.Events.DESCRIPTION, it) }
     launch(intent)
 }
-
-/** A friendly invitation to send when proposing a plan. */
-fun inviteText(person: Person, kind: String, whenText: String): String {
-    val k = kind.lowercase()
-    val activity = when {
-        "call" in k || "video" in k -> "a call"
-        k == "meet" -> "catching up"
-        else -> k
-    }
-    return "Hi ${person.shortName}! Are you free for $activity $whenText? 😊"
-}

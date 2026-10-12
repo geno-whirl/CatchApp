@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.DropdownMenu
@@ -408,6 +409,7 @@ private fun About(p: Person, today: LocalDate, actions: PersonActions) {
             InfoRow(contactIcon(k), k.replace('_', ' ').replaceFirstChar { it.uppercase() }, v, onClick = { actions.openContact(k, v) })
         }
         if (p.location != null) InfoRow(Icons.Rounded.Place, "Lives in", p.location!!)
+        p.language?.let { InfoRow(Icons.Rounded.Translate, "Language", io.github.genowhirl.catchup.core.Languages.displayName(it)) }
         if (p.birthday == null && p.howWeMet == null && p.contact.isEmpty() && p.location == null) {
             TextButton(actions.edit) { Text("Add birthday, phone, how you met…") }
         }

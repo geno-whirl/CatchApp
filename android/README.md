@@ -6,16 +6,23 @@ people who matter.
 - **Today** — who to reach out to and why (birthdays, overdue, follow-ups), what's coming
   up, and "How did it go?" after each plan.
 - **Weekly planning** — every week (Sunday evening by default) a notification asks when
-  you're free; CatchUp suggests who to see or call, slots them into your free times, and
-  helps you invite them.
+  you're free. Then plan on a board: your free times on top, everyone else below, ordered
+  by suggestion, keep-in-touch date, priority or cadence. Hold and drag people onto a time
+  (or tap a person, then a time); several people can share one. "Suggest" fills the gaps.
+- **Invitations in their language** — set someone's language and invites are written in it
+  (English, Spanish, French, German, Italian, Portuguese, Dutch).
 - **Plans with reminders** — schedule a catch-up tomorrow or months ahead; get a reminder
   before and a nudge to note what you talked about after.
 - **Interactions** — a timeline per person: date, time, kind, place, notes and things to
   ask next time.
 - **Keep in touch** — importance (high/medium/low), a suggested rhythm, and an optional
   date for the next contact.
-- **Import** from the phone's contacts, .vcf files, WhatsApp chat exports, and Facebook /
-  Instagram data downloads.
+- **Add people** one at a time — from scratch or picked from the phone's contacts — or
+  **import** many from the phone's contacts, .vcf files, WhatsApp chat exports, and
+  Facebook / Instagram data downloads.
+- **Backups** — export everyone as a .zip of Markdown files, and restore from one (or from
+  a download of the data repository). Restoring adds missing people and only replaces
+  existing ones if you choose to.
 - **Your data** — plain Markdown files (format: [../docs/data-format.md](../docs/data-format.md)),
   kept on the phone and optionally synced with **Google Drive** or a private **GitHub** repo.
   Edits queue offline and merge with changes made elsewhere (another phone, an AI assistant).

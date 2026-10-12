@@ -4,6 +4,7 @@ relationship: friend
 tags: [former-colleague, berlin]
 birthday: 06-22
 location: Berlin, Germany
+language: de
 contact:
   email: jonas.weber@example.com
 how_we_met: Sat next to each other at my first job.

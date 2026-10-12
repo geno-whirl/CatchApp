@@ -211,6 +211,10 @@ fun parsePerson(id: String, text: String): ParseResult {
         else -> warn("`family` should be a list of people.")
     }
 
+    val language = text(d["language"])?.let { raw ->
+        Languages.normalize(raw) ?: run { warn("`language` \"$raw\" isn't a language I know (try `en`, `es`, `de`…)."); null }
+    }
+
     val cadence = text(d["cadence"])?.let { raw ->
         Cadence.parse(raw) ?: run { error("`cadence` \"$raw\" is not recognised (try monthly, quarterly, or 6w)."); null }
     }
@@ -256,6 +260,7 @@ fun parsePerson(id: String, text: String): ParseResult {
             tags = tags,
             birthday = birthday,
             location = text(d["location"]),
+            language = language,
             contact = contact,
             family = family,
             howWeMet = text(d["how_we_met"]),

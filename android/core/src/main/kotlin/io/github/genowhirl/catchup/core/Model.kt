@@ -62,6 +62,8 @@ data class Person(
     val tags: List<String> = emptyList(),
     val birthday: Birthday? = null,
     val location: String? = null,
+    /** Language tag for invitations, e.g. `es` or `pt-BR`. */
+    val language: String? = null,
     val contact: Map<String, String> = emptyMap(),
     val family: List<FamilyMember> = emptyList(),
     val howWeMet: String? = null,

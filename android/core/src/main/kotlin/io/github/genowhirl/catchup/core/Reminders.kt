@@ -33,7 +33,7 @@ data class Alarm(
     enum class Type { REMINDER, FOLLOW_UP }
 }
 
-private fun isCall(kind: String?): Boolean =
+internal fun isCall(kind: String?): Boolean =
     kind != null && listOf("call", "video", "phone").any { it in kind.lowercase() }
 
 fun planTitle(p: Person, plan: Plan): String =

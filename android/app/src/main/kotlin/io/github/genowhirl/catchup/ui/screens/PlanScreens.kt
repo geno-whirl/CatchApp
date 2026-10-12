@@ -71,15 +71,15 @@ import io.github.genowhirl.catchup.core.Op
 import io.github.genowhirl.catchup.core.Person
 import io.github.genowhirl.catchup.core.Plan
 import io.github.genowhirl.catchup.core.PlanInput
-import io.github.genowhirl.catchup.core.Proposal
 import io.github.genowhirl.catchup.core.Slot
-import io.github.genowhirl.catchup.core.Suggestion
 import io.github.genowhirl.catchup.core.Upcoming
 import io.github.genowhirl.catchup.core.When
 import io.github.genowhirl.catchup.core.planTitle
-import io.github.genowhirl.catchup.core.planWeek
+import io.github.genowhirl.catchup.core.InviteWhen
+import io.github.genowhirl.catchup.core.Languages
+import io.github.genowhirl.catchup.core.WeekBoard
+import io.github.genowhirl.catchup.core.inviteText
 import io.github.genowhirl.catchup.core.planningWeekStart
-import io.github.genowhirl.catchup.core.suggestedKind
 import io.github.genowhirl.catchup.core.upcomingPlans
 import io.github.genowhirl.catchup.ui.components.Avatar
 import io.github.genowhirl.catchup.ui.components.DateTile
@@ -227,9 +227,7 @@ fun PlanWeekScreen(
     var target by remember { mutableStateOf(goal.coerceAtLeast(1)) }
     var keepAsUsual by remember { mutableStateOf(false) }
     var step by remember { mutableStateOf(Step.FREE) }
-    val proposals = remember { mutableStateListOf<Proposal>() }
-    val more = remember { mutableStateListOf<Suggestion>() }
-    var adding by remember { mutableStateOf(false) }
+    var board by remember { mutableStateOf(WeekBoard()) }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -310,14 +308,7 @@ fun PlanWeekScreen(
                         Button(
                             onClick = {
                                 if (keepAsUsual) onRememberUsual(free.map { it.date.dayOfWeek to it.part }.toSet())
-                                val plan = planWeek(people, today, start, free.toList(), target)
-                                proposals.clear(); proposals.addAll(plan.proposals)
-                                // Suggestions first, then everyone else (longest since contact first).
-                                val chosen = plan.proposals.map { it.person.id }.toSet() + plan.more.map { it.person.id }
-                                val others = people.filter { it.id !in chosen }
-                                    .sortedBy { it.lastContacted ?: java.time.LocalDate.MIN }
-                                    .map { Suggestion(it, emptyList(), 0.0) }
-                                more.clear(); more.addAll(plan.more + others)
+                                board = boardFor(free.toList(), board, people, today, start, target)
                                 step = Step.PLAN
                             },
                             enabled = free.isNotEmpty(),
@@ -331,62 +322,17 @@ fun PlanWeekScreen(
                     }
                 }
 
-                Step.PLAN -> LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
-                    item {
-                        Text(
-                            if (proposals.isEmpty()) "No one is due this week" else "Here's an idea",
-                            style = MaterialTheme.typography.headlineMedium,
+                Step.PLAN -> WeekBoardStep(
+                    people, today, start, target, board, { board = it },
+                    onSave = {
+                        val plans = board.plans()
+                        onSave(
+                            plans.map { (p, plan) -> Op.SavePlan(p.path, PlanInput(plan.at.format(), plan.kind)) },
+                            "Planned ${plans.size} catch-up${if (plans.size == 1) "" else "s"}",
                         )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            if (proposals.isEmpty()) "Everyone's in touch. Add someone anyway if you'd like."
-                            else "Swap, remove or switch between a call and meeting up. Nothing is sent until you invite them.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                    }
-                    items(proposals.size) { i ->
-                        val pr = proposals[i]
-                        ProposalCard(
-                            pr, today,
-                            onKind = { k -> proposals[i] = pr.copy(kind = k) },
-                            onSwap = if (more.isNotEmpty()) ({
-                                val next = more.removeAt(0)
-                                more.add(Suggestion(pr.person, pr.reasons, 0.0))
-                                proposals[i] = Proposal(next.person, pr.slot, suggestedKind(next.person), next.reasons)
-                            }) else null,
-                            onRemove = { proposals.removeAt(i) },
-                        )
-                    }
-                    item {
-                        val freeLeft = free.filter { s -> proposals.none { it.slot == s } }
-                        if (freeLeft.isNotEmpty() && more.isNotEmpty()) {
-                            OutlinedButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Rounded.Add, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Add someone")
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                val ops = proposals.map { pr ->
-                                    Op.SavePlan(pr.person.path, PlanInput(pr.slot.at.format(), pr.kind))
-                                }
-                                onSave(ops, "Planned ${proposals.size} catch-up${if (proposals.size == 1) "" else "s"}")
-                                step = Step.DONE
-                            },
-                            enabled = proposals.isNotEmpty(),
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                        ) {
-                            Icon(Icons.Rounded.EventAvailable, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Save ${proposals.size} plan${if (proposals.size == 1) "" else "s"}")
-                        }
-                        Spacer(Modifier.height(24.dp))
-                    }
-                }
+                        step = Step.DONE
+                    },
+                )
 
                 Step.DONE -> LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
                     item {
@@ -399,26 +345,37 @@ fun PlanWeekScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                     }
-                    items(proposals.size) { i ->
-                        val pr = proposals[i]
-                        val plan = Plan(pr.slot.at, pr.kind)
-                        Panel(Modifier.padding(bottom = 10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Avatar(pr.person.name, 44.dp, pr.person.priority)
-                                Spacer(Modifier.width(14.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(planTitle(pr.person, plan), style = MaterialTheme.typography.titleMedium)
-                                    Text(slotText(pr.slot, today), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    board.slots.filter { board.at(it).isNotEmpty() }.forEach { slot ->
+                        item(key = "slot:" + slot.at.format() + slot.part) {
+                            Text(
+                                "${relativeDay(slot.date, today)} · ${slot.time.format(When.HH_MM)}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
+                            )
+                        }
+                        items(board.at(slot), key = { "p:" + it.person.id }) { pl ->
+                            val plan = Plan(slot.at, pl.kind)
+                            Panel(Modifier.padding(bottom = 10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Avatar(pl.person.name, 44.dp, pl.person.priority)
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(planTitle(pl.person, plan), style = MaterialTheme.typography.titleMedium)
+                                        pl.person.language?.let {
+                                            Text("Invite in ${Languages.displayName(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
                                 }
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilledTonalButton(onClick = { onInvite(pr.person, io.github.genowhirl.catchup.ui.inviteText(pr.person, pr.kind, slotInvite(pr.slot, today))) }) {
-                                    Icon(Icons.AutoMirrored.Rounded.Send, null, Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Invite")
+                                Spacer(Modifier.height(10.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilledTonalButton(onClick = { onInvite(pl.person, inviteText(pl.person, pl.kind, slot.inviteWhen(), today)) }) {
+                                        Icon(Icons.AutoMirrored.Rounded.Send, null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Invite")
+                                    }
+                                    TextButton(onClick = { onAddToCalendar(pl.person, plan) }) { Text("Add to calendar") }
                                 }
-                                TextButton(onClick = { onAddToCalendar(pr.person, plan) }) { Text("Add to calendar") }
                             }
                         }
                     }
@@ -430,92 +387,18 @@ fun PlanWeekScreen(
             }
         }
     }
-
-    if (adding) {
-        ModalBottomSheet(onDismissRequest = { adding = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
-                item { Text("Add someone", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 12.dp)) }
-                items(more.toList(), key = { it.person.id }) { s ->
-                    Row(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable {
-                            val slot = free.sortedWith(compareBy<Slot> { it.date }.thenBy { it.part }).firstOrNull { f -> proposals.none { it.slot == f } }
-                            if (slot != null) {
-                                proposals.add(Proposal(s.person, slot, suggestedKind(s.person), s.reasons))
-                                more.remove(s)
-                            }
-                            adding = false
-                        }.padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Avatar(s.person.name, 44.dp, s.person.priority)
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(s.person.name, style = MaterialTheme.typography.titleMedium)
-                            if (s.reasons.isNotEmpty()) {
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { s.reasons.take(1).forEach { ReasonPill(it, today) } }
-                            } else {
-                                Text(
-                                    s.person.lastContacted?.let { "Last in touch ${io.github.genowhirl.catchup.core.formatDaysAgo(io.github.genowhirl.catchup.core.daysBetween(it, today))}" } ?: "Not in touch yet",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-                item { Spacer(Modifier.height(32.dp)) }
-            }
-        }
-    }
 }
 
-private fun partOf(w: When): DayPart = when {
-    w.time == null -> DayPart.EVENING
-    w.time!!.hour < 12 -> DayPart.MORNING
-    w.time!!.hour < 14 -> DayPart.LUNCH
-    w.time!!.hour < 17 -> DayPart.AFTERNOON
-    else -> DayPart.EVENING
+/** Free times from step one, keeping anyone already placed; a fresh board is pre-filled. */
+private fun boardFor(free: List<Slot>, old: WeekBoard, people: List<Person>, today: LocalDate, start: LocalDate, goal: Int): WeekBoard {
+    val kept = old.slots.filter { s -> Slot(s.date, s.part) in free || old.at(s).isNotEmpty() }
+    var b = WeekBoard((free.filter { f -> kept.none { it.date == f.date && it.part == f.part } } + kept).sortedBy { it.at })
+    kept.forEach { s -> old.at(s).forEach { pl -> b = b.place(pl.person, s, pl.kind, pl.reasons) } }
+    return if (b.count == 0) b.autoFill(people, today, start, goal) else b
 }
 
-private fun slotText(s: Slot, today: LocalDate) = "${relativeDay(s.date, today)} · ${s.part.label.lowercase()}, ${s.part.time.format(When.HH_MM)}"
+/** "Tuesday evening" when the time is the usual one for that part of the day, else the time. */
+fun Slot.inviteWhen(): InviteWhen =
+    if (time == part.time) InviteWhen(date, part = part) else InviteWhen(date, time = time)
 
-private fun slotInvite(s: Slot, today: LocalDate): String {
-    val day = relativeDay(s.date, today).lowercase().let { if (it == "today" || it == "tomorrow") it else "on ${relativeDay(s.date, today)}" }
-    val part = when (s.part) {
-        DayPart.MORNING -> "morning"
-        DayPart.LUNCH -> "lunchtime"
-        DayPart.AFTERNOON -> "afternoon"
-        DayPart.EVENING -> "evening"
-    }
-    return "$day $part"
-}
-
-@Composable
-private fun ProposalCard(pr: Proposal, today: LocalDate, onKind: (String) -> Unit, onSwap: (() -> Unit)?, onRemove: () -> Unit) {
-    Panel(Modifier.padding(bottom = 10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Avatar(pr.person.name, 48.dp, pr.person.priority)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(pr.person.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(slotText(pr.slot, today), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-            }
-            onSwap?.let { IconButton(it) { Icon(Icons.Rounded.SwapHoriz, "Someone else") } }
-            IconButton(onRemove) { Icon(Icons.Rounded.Close, "Remove") }
-        }
-        if (pr.reasons.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                pr.reasons.forEach { ReasonPill(it, today) }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            listOf(KIND_CALL, KIND_MEET).forEachIndexed { i, k ->
-                SegmentedButton(selected = pr.kind == k, onClick = { onKind(k) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
-                    Text(if (k == KIND_CALL) "Call" else "Meet up")
-                }
-            }
-        }
-    }
-}
+private fun partOf(w: When): DayPart = io.github.genowhirl.catchup.core.partOf(w.time)

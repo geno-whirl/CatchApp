@@ -14,7 +14,7 @@ internal fun loadYaml(text: String): Any? =
  */
 internal object YamlWriter {
     val ORDER = listOf(
-        "name", "nickname", "relationship", "priority", "tags", "birthday", "location", "contact", "family",
+        "name", "nickname", "relationship", "priority", "tags", "birthday", "location", "language", "contact", "family",
         "how_we_met", "cadence", "next_contact", "last_contacted", "plans",
     )
     private val FLOW_LISTS = setOf("tags")

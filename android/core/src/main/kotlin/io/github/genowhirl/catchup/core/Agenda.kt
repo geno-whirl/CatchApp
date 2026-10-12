@@ -128,8 +128,17 @@ enum class DayPart(val label: String, val time: LocalTime) {
     EVENING("Evening", LocalTime.of(19, 0)),
 }
 
-data class Slot(val date: LocalDate, val part: DayPart) {
-    val at: When get() = When(date, part.time)
+/** A free time in the week: a day and part of the day, at the part's usual time unless changed. */
+data class Slot(val date: LocalDate, val part: DayPart, val time: LocalTime = part.time) {
+    val at: When get() = When(date, time)
+}
+
+fun partOf(time: LocalTime?): DayPart = when {
+    time == null -> DayPart.EVENING
+    time.hour < 12 -> DayPart.MORNING
+    time.hour < 14 -> DayPart.LUNCH
+    time.hour < 17 -> DayPart.AFTERNOON
+    else -> DayPart.EVENING
 }
 
 data class Proposal(val person: Person, val slot: Slot, val kind: String, val reasons: List<Reason>)
@@ -149,6 +158,18 @@ fun suggestedKind(p: Person): String {
     }
 }
 
+/** Suggestions for the 7 days from `weekStart`, leaving out birthdays that fall before it. */
+fun weekSuggestions(people: List<Person>, today: LocalDate, weekStart: LocalDate): List<Suggestion> {
+    val horizon = daysBetween(today, weekStart.plusDays(6))
+    return suggestions(people, today, horizon).mapNotNull { s ->
+        val kept = s.reasons.filterNot { r ->
+            (r is Reason.Birthday && today.plusDays(r.days.toLong()).isBefore(weekStart)) ||
+                (r is Reason.FamilyBirthday && today.plusDays(r.days.toLong()).isBefore(weekStart))
+        }
+        if (kept.isEmpty()) null else s.copy(reasons = kept)
+    }
+}
+
 /**
  * Picks up to `goal` people and spreads them over the free slots: birthdays land on (or
  * near) the day, everyone else goes to the earliest free day, at most one per day while
@@ -156,17 +177,9 @@ fun suggestedKind(p: Person): String {
  */
 fun planWeek(people: List<Person>, today: LocalDate, weekStart: LocalDate, free: List<Slot>, goal: Int): WeekPlan {
     val weekEnd = weekStart.plusDays(6)
-    val horizon = daysBetween(today, weekEnd)
-    // Birthdays that fall before the planned week are for today, not for the plan.
-    val ranked = suggestions(people, today, horizon).mapNotNull { s ->
-        val kept = s.reasons.filterNot { r ->
-            (r is Reason.Birthday && today.plusDays(r.days.toLong()).isBefore(weekStart)) ||
-                (r is Reason.FamilyBirthday && today.plusDays(r.days.toLong()).isBefore(weekStart))
-        }
-        if (kept.isEmpty()) null else s.copy(reasons = kept)
-    }
+    val ranked = weekSuggestions(people, today, weekStart)
     val slots = free.filter { !it.date.isBefore(weekStart) && !it.date.isAfter(weekEnd) }
-        .sortedWith(compareBy<Slot> { it.date }.thenBy { it.part })
+        .sortedBy { it.at }
         .toMutableList()
     val usedDays = mutableMapOf<LocalDate, Int>()
     val proposals = mutableListOf<Proposal>()

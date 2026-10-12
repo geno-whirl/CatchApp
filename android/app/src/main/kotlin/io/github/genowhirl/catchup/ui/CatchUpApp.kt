@@ -1,5 +1,24 @@
 package io.github.genowhirl.catchup.ui
 
+import android.content.pm.PackageManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.GroupAdd
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.core.content.ContextCompat
+import io.github.genowhirl.catchup.core.imports.Candidate
+import io.github.genowhirl.catchup.core.imports.ImportSource
+import io.github.genowhirl.catchup.core.imports.findMatch
+import io.github.genowhirl.catchup.data.ContactsReader
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -47,7 +66,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import io.github.genowhirl.catchup.core.InviteWhen
 import io.github.genowhirl.catchup.core.Op
+import io.github.genowhirl.catchup.core.inviteText
 import io.github.genowhirl.catchup.core.Person
 import io.github.genowhirl.catchup.core.idFromPath
 import io.github.genowhirl.catchup.core.sync.GitHubStore
@@ -88,6 +109,7 @@ private sealed interface Sheet {
     data class PlanIt(val personId: String, val planKey: String?) : Sheet
     data class KeepInTouch(val personId: String) : Sheet
     data object PickPerson : Sheet
+    data object AddPerson : Sheet
 }
 
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
@@ -203,6 +225,46 @@ fun CatchUpApp(vm: AppViewModel) {
         }
     }
 
+    // Adding someone: from scratch, or from one of the phone's contacts.
+    var draft by remember { mutableStateOf<Candidate?>(null) }
+    fun startNew(from: Candidate?) {
+        draft = from
+        sheet = null
+        nav.navigate("new")
+    }
+    fun fromContact(uri: android.net.Uri) {
+        scope.launch {
+            val found = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val (id, name) = ContactsReader.idAndName(context, uri) ?: return@withContext null
+                // Without the contacts permission, the picker still lets us see the name.
+                val details = try { ContactsReader.readOne(context, id) } catch (_: SecurityException) { null }
+                details ?: Candidate(name, ImportSource.CONTACTS)
+            }
+            if (found == null || found.name.isBlank()) {
+                vm.say("Couldn't read that contact")
+                return@launch
+            }
+            val existing = findMatch(found, people)
+            if (existing == null) startNew(found)
+            else {
+                sheet = null
+                vm.say("${existing.name} is already in CatchUp")
+                nav.navigate("person/${existing.id}")
+            }
+        }
+    }
+    val pickContact = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri -> uri?.let(::fromContact) }
+    val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { pickContact.launch(null) }
+    fun pickFromContacts() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) pickContact.launch(null)
+        else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+    }
+    val addPerson = { sheet = Sheet.AddPerson }
+
+    fun invite(p: Person, text: String) {
+        Reach.of(p).let { r -> r.whatsapp?.let { context.whatsapp(it, text) } ?: r.phone?.let { context.text(it, text) } ?: context.share(text) }
+    }
+
     fun addExamples() {
         val ops = context.assets.list("people").orEmpty().filter { it.endsWith(".md") && !it.startsWith("_") }.map { name ->
             Op.Create("people/$name", context.assets.open("people/$name").bufferedReader().readText(), skipIfExists = true)
@@ -271,7 +333,7 @@ fun CatchUpApp(vm: AppViewModel) {
                             connectDrive = { connectDrive(true) { e -> e?.let(vm::say) } },
                             openStorage = { nav.navigate("storage") },
                             importContacts = { nav.navigate("import") },
-                            addPerson = { nav.navigate("new") },
+                            addPerson = addPerson,
                             tryExamples = { addExamples() },
                             finish = { name, day, time, goal ->
                                 vm.updateSettings { it.copy(onboarded = true, userName = name, planningDay = day, planningTime = time, weeklyGoal = goal) }
@@ -291,14 +353,14 @@ fun CatchUpApp(vm: AppViewModel) {
                             planWeek = { nav.navigate("plan-week") },
                             call = { context.call(it) },
                             message = { p -> Reach.of(p).let { r -> r.whatsapp?.let { context.whatsapp(it) } ?: r.phone?.let { context.text(it) } } },
-                            addPerson = { nav.navigate("new") },
+                            addPerson = addPerson,
                             import = { nav.navigate("import") },
                         ),
                         padding,
                     )
                 }
                 composable("people") {
-                    PeopleScreen(people, now.toLocalDate(), { nav.navigate("person/$it") }, { nav.navigate("new") }, { nav.navigate("import") }, padding)
+                    PeopleScreen(people, now.toLocalDate(), { nav.navigate("person/$it") }, addPerson, { nav.navigate("import") }, padding)
                 }
                 composable("plans") {
                     PlansTab(
@@ -318,6 +380,7 @@ fun CatchUpApp(vm: AppViewModel) {
                             storage = { nav.navigate("storage") },
                             import = { nav.navigate("import") },
                             backup = { backup.launch("catchup-backup-${now.toLocalDate()}.zip") },
+                            restore = { nav.navigate("import/restore") },
                             requestNotifications = requestNotifications,
                             requestExactAlarms = requestExact,
                             openFile = { nav.navigate("markdown/${idFromPath(it)}") },
@@ -367,7 +430,7 @@ fun CatchUpApp(vm: AppViewModel) {
                     }
                 }
                 composable("new") {
-                    EditPersonScreen(null, { nav.popBackStack() }) { ops, message, _ ->
+                    EditPersonScreen(null, { nav.popBackStack() }, draft) { ops, message, _ ->
                         vm.apply(*ops.toTypedArray(), message = message) { paths ->
                             nav.navigate("person/${idFromPath(paths.first())}") { popUpTo("new") { inclusive = true } }
                         }
@@ -387,6 +450,12 @@ fun CatchUpApp(vm: AppViewModel) {
                         nav.navigate("people") { popUpTo("today") }
                     }
                 }
+                composable("import/restore") {
+                    ImportScreen(people, vm::files, { nav.popBackStack() }, startRestore = true) { ops, message ->
+                        vm.apply(*ops.toTypedArray(), message = message)
+                        nav.navigate("people") { popUpTo("today") }
+                    }
+                }
                 composable("storage") {
                     StorageScreen(settings.storage, people.size, { nav.popBackStack() }, ::connect, { context.open(it) })
                 }
@@ -396,7 +465,7 @@ fun CatchUpApp(vm: AppViewModel) {
                         onBack = { nav.popBackStack() },
                         onSave = { ops, message -> vm.apply(*ops.toTypedArray(), message = message) },
                         onRememberUsual = { slots -> vm.updateSettings { s -> s.copy(usualFreeTime = slots.map { "${it.first.name}:${it.second.name}" }.toSet()) } },
-                        onInvite = { p, text -> Reach.of(p).let { r -> r.whatsapp?.let { context.whatsapp(it, text) } ?: r.phone?.let { context.text(it, text) } ?: context.share(text) } },
+                        onInvite = ::invite,
                         onAddToCalendar = { p, plan -> context.addToCalendar(p, plan) },
                     )
                 }
@@ -416,6 +485,7 @@ fun CatchUpApp(vm: AppViewModel) {
                     onDismiss = { sheet = null },
                     onSave = { ops, message, _ -> vm.apply(*ops.toTypedArray(), message = message); sheet = null },
                     onAddToCalendar = { plan -> context.addToCalendar(p, plan) },
+                    onInvite = { plan -> invite(p, inviteText(p, plan.kind, InviteWhen(plan.at.date, plan.at.time), now.toLocalDate())) },
                 )
             }
             is Sheet.KeepInTouch -> person(s.personId)?.let { p ->
@@ -425,6 +495,12 @@ fun CatchUpApp(vm: AppViewModel) {
                 }
             }
             Sheet.PickPerson -> PersonPicker(people, now, { sheet = null }) { sheet = Sheet.PlanIt(it.id, null) }
+            Sheet.AddPerson -> AddPersonSheet(
+                onDismiss = { sheet = null },
+                onNew = { startNew(null) },
+                onContact = { pickFromContacts() },
+                onImport = { sheet = null; nav.navigate("import") },
+            )
             null -> {}
         }
 
@@ -452,6 +528,36 @@ private fun PersonPicker(people: List<Person>, now: LocalDateTime, onDismiss: ()
         Text("Plan with…", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
         LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
             items(people, key = { it.id }) { p -> PersonRow(p, now.toLocalDate()) { onPick(p) } }
+        }
+    }
+}
+
+@Composable
+private fun AddPersonSheet(onDismiss: () -> Unit, onNew: () -> Unit, onContact: () -> Unit, onImport: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp).navigationBarsPadding()) {
+            Text("Add someone", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 8.dp, bottom = 12.dp))
+            AddChoice(Icons.Rounded.Contacts, "From your contacts", "Pick someone from your phone — their number, email and birthday come along.", onContact, emphasized = true)
+            AddChoice(Icons.Rounded.PersonAdd, "New person", "Start from a blank card.", onNew)
+            AddChoice(Icons.Rounded.GroupAdd, "Import several", "Contacts, WhatsApp, Facebook, Instagram or a backup.", onImport)
+        }
+    }
+}
+
+@Composable
+private fun AddChoice(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, text: String, onClick: () -> Unit, emphasized: Boolean = false) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(MaterialTheme.shapes.large)
+            .background(if (emphasized) scheme.primaryContainer else scheme.surfaceContainerLow)
+            .clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = if (emphasized) scheme.onPrimaryContainer else scheme.primary)
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = if (emphasized) scheme.onPrimaryContainer else scheme.onSurface)
+            Text(text, style = MaterialTheme.typography.bodySmall, color = if (emphasized) scheme.onPrimaryContainer else scheme.onSurfaceVariant)
         }
     }
 }
