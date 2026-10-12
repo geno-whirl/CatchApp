@@ -160,8 +160,6 @@ internal fun WeekBoardStep(
         Column(Modifier.fillMaxSize()) {
             // Header.
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Text("Who and when", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(2.dp))
                 Text(
                     if (selected != null) "Now tap a time for ${person(selected!!)?.shortName}."
                     else "Hold and drag people onto a time, or tap someone and then a time. Several people can share one.",
@@ -226,7 +224,7 @@ internal fun WeekBoardStep(
                 benchItems, today, order, { order = it }, board, selected,
                 onSelect = { id -> selected = if (selected == id) null else id },
                 drag = drag,
-                modifier = Modifier.weight(0.8f),
+                modifier = Modifier.weight(1f),
             )
 
             Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -402,8 +400,10 @@ private fun Bench(
                     FilterChip(order == o, { onOrder(o) }, { Text(o.label) })
                 }
             }
+            // People already on the board go to the end, so the top shows who's left.
+            val ordered = items.sortedBy { board.slotOf(it.person.id) != null }
             LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 8.dp)) {
-                items(items, key = { it.person.id }) { item ->
+                items(ordered, key = { it.person.id }) { item ->
                     BenchRow(item, today, order, board.slotOf(item.person.id), selected == item.person.id, drag) { onSelect(item.person.id) }
                 }
             }

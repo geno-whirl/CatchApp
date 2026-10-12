@@ -231,7 +231,7 @@ fun PlanWeekScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(when (step) { Step.FREE -> "Plan your week"; Step.PLAN -> "Your week"; Step.DONE -> "All set" }) },
+            title = { Text(when (step) { Step.FREE -> "Plan your week"; Step.PLAN -> "Who and when"; Step.DONE -> "All set" }) },
             navigationIcon = {
                 IconButton({ if (step == Step.PLAN) step = Step.FREE else onBack() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
             },
