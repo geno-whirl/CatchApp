@@ -432,7 +432,8 @@ private fun MomentCard(slot: Slot, today: LocalDate, onClick: () -> Unit) {
             if (slot.date == today) "Today" else weekday(slot.date) + " " + slot.date.dayOfMonth,
             style = MaterialTheme.typography.titleSmall,
         )
-        Text("${slot.part.label} · ${slot.time.format(When.HH_MM)}", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1)
+        Text(slot.part.label, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1)
+        Text(slot.time.format(When.HH_MM), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Add, null, tint = scheme.primary, modifier = Modifier.size(16.dp))
