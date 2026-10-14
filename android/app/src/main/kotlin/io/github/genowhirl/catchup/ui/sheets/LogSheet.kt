@@ -47,7 +47,7 @@ import io.github.genowhirl.catchup.ui.components.kindIcon
 import java.time.LocalDate
 import java.time.LocalTime
 
-val LOG_KINDS = listOf("Call", "Video call", "In person", "Messages", "Other")
+val LOG_KINDS = listOf("Call", "Video call", "Voice message", "In person", "Messages", "Other")
 
 private fun lines(text: String) = text.lines().map { it.trim().removePrefix("-").removePrefix("•").trim() }.filter { it.isNotEmpty() }
 
@@ -58,13 +58,16 @@ fun LogSheet(person: Person, plan: Plan?, onDismiss: () -> Unit, onSave: (List<O
     val initialKind = plan?.kind?.let { if (it == "Meet") "In person" else it } ?: "Call"
     var kind by remember { mutableStateOf(initialKind) }
     var date by remember { mutableStateOf(plan?.at?.date?.takeIf { !it.isAfter(today) } ?: today) }
-    var time by remember { mutableStateOf<LocalTime?>(plan?.at?.time) }
+    // The plan's time if there was one, else now (rounded down to 5 minutes).
+    var time by remember {
+        mutableStateOf<LocalTime?>(plan?.at?.time ?: LocalTime.now().withSecond(0).withNano(0).let { it.withMinute(it.minute / 5 * 5) })
+    }
     var place by remember { mutableStateOf(plan?.place.orEmpty()) }
     var notes by remember { mutableStateOf("") }
     var next by remember { mutableStateOf("") }
     val covered = remember { mutableStateListOf<String>() }
     val kinds = (LOG_KINDS + listOfNotNull(initialKind.takeIf { it !in LOG_KINDS })).distinct()
-    val remote = kind.lowercase().let { "call" in it || "message" in it }
+    val remote = kind.lowercase().let { "call" in it || "message" in it || "voice" in it }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(

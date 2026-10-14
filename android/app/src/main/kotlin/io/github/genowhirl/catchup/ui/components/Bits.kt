@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Restaurant
@@ -56,6 +57,7 @@ fun kindIcon(kind: String?): ImageVector {
     val k = kind?.lowercase().orEmpty()
     return when {
         "video" in k -> Icons.Rounded.Videocam
+        "voice" in k || "audio" in k -> Icons.Rounded.Mic
         "call" in k || "phone" in k -> Icons.Rounded.Call
         "message" in k || "text" in k || "chat" in k || "whatsapp" in k -> Icons.AutoMirrored.Rounded.Chat
         "email" in k || "mail" in k -> Icons.Rounded.Email

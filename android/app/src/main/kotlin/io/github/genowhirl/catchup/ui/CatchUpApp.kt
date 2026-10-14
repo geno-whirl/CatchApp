@@ -1,5 +1,17 @@
 package io.github.genowhirl.catchup.ui
 
+import io.github.genowhirl.catchup.core.DayPart
+import io.github.genowhirl.catchup.core.KIND_CALL
+import io.github.genowhirl.catchup.core.PeopleOrder
+import io.github.genowhirl.catchup.core.Slot
+import io.github.genowhirl.catchup.core.When
+import io.github.genowhirl.catchup.core.bench
+import io.github.genowhirl.catchup.core.daysBetween
+import io.github.genowhirl.catchup.core.formatDaysAgo
+import io.github.genowhirl.catchup.core.freeMoments
+import io.github.genowhirl.catchup.core.suggestedKind
+import io.github.genowhirl.catchup.ui.components.Avatar
+import io.github.genowhirl.catchup.ui.components.ReasonPill
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -106,7 +118,14 @@ import java.util.zip.ZipOutputStream
 /** Sheets that float over any screen. */
 private sealed interface Sheet {
     data class Log(val personId: String, val planKey: String?) : Sheet
-    data class PlanIt(val personId: String, val planKey: String?) : Sheet
+    data class PlanIt(
+        val personId: String,
+        val planKey: String?,
+        val date: java.time.LocalDate? = null,
+        val time: java.time.LocalTime? = null,
+        val kind: String? = null,
+    ) : Sheet
+    data class PickForMoment(val slot: Slot) : Sheet
     data class KeepInTouch(val personId: String) : Sheet
     data object PickPerson : Sheet
     data object AddPerson : Sheet
@@ -369,6 +388,8 @@ fun CatchUpApp(vm: AppViewModel) {
                         onOpenPlan = { p, plan -> sheet = Sheet.PlanIt(p.id, plan.key) },
                         onNewPlan = { sheet = Sheet.PickPerson },
                         contentPadding = padding,
+                        free = freeMoments(people, settings.usualSlots(), now),
+                        onPlanMoment = { sheet = Sheet.PickForMoment(it) },
                     )
                 }
                 composable("settings") {
@@ -476,6 +497,8 @@ fun CatchUpApp(vm: AppViewModel) {
             is Sheet.Log -> person(s.personId)?.let { p ->
                 LogSheet(p, p.plans.firstOrNull { it.key == s.planKey }, { sheet = null }) { ops, message ->
                     vm.apply(*ops.toTypedArray(), message = message)
+                    // Logged from a reminder or "How was it?": that notification is done.
+                    s.planKey?.let { Notifications.cancel(context, Scheduler.notificationId(p.id, it)) }
                     sheet = null
                 }
             }
@@ -485,6 +508,9 @@ fun CatchUpApp(vm: AppViewModel) {
                     onDismiss = { sheet = null },
                     onSave = { ops, message, _ -> vm.apply(*ops.toTypedArray(), message = message); sheet = null },
                     onAddToCalendar = { plan -> context.addToCalendar(p, plan) },
+                    initialDate = s.date,
+                    initialTime = s.time,
+                    initialKind = s.kind,
                     onInvite = { plan -> invite(p, inviteText(p, plan.kind, InviteWhen(plan.at.date, plan.at.time), now.toLocalDate())) },
                 )
             }
@@ -495,6 +521,9 @@ fun CatchUpApp(vm: AppViewModel) {
                 }
             }
             Sheet.PickPerson -> PersonPicker(people, now, { sheet = null }) { sheet = Sheet.PlanIt(it.id, null) }
+            is Sheet.PickForMoment -> MomentPicker(people, now.toLocalDate(), s.slot, { sheet = null }) { p ->
+                sheet = Sheet.PlanIt(p.id, null, s.slot.date, s.slot.time, momentKind(p, s.slot))
+            }
             Sheet.AddPerson -> AddPersonSheet(
                 onDismiss = { sheet = null },
                 onNew = { startNew(null) },
@@ -558,6 +587,56 @@ private fun AddChoice(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (emphasized) scheme.onPrimaryContainer else scheme.onSurface)
             Text(text, style = MaterialTheme.typography.bodySmall, color = if (emphasized) scheme.onPrimaryContainer else scheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** A sensible plan kind for a free moment: a call if that's how you usually talk, else a meal or coffee. */
+private fun momentKind(p: Person, slot: Slot): String = when {
+    suggestedKind(p) == KIND_CALL -> "Call"
+    slot.part == DayPart.LUNCH -> "Lunch"
+    slot.part == DayPart.EVENING -> "Dinner"
+    else -> "Coffee"
+}
+
+/** Who to see at a free moment: suggestions first, with why. */
+@Composable
+private fun MomentPicker(people: List<Person>, today: java.time.LocalDate, slot: Slot, onDismiss: () -> Unit, onPick: (Person) -> Unit) {
+    val items = remember(people, slot) { bench(people, today, today, PeopleOrder.SUGGESTED) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)) {
+        val day = if (slot.date == today) "today" else slot.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+        Text("Who for $day ${slot.part.label.lowercase()}?", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
+        Text(
+            "At ${slot.time.format(When.HH_MM)} — you can change it next.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+        )
+        LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 32.dp)) {
+            items(items, key = { it.person.id }) { item ->
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable { onPick(item.person) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(item.person.name, 44.dp, item.person.priority)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(item.person.name, style = MaterialTheme.typography.titleMedium)
+                        when {
+                            item.planned != null -> Text(
+                                "Already planned ${item.planned!!.at.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())}",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            item.reasons.isNotEmpty() -> ReasonPill(item.reasons.first(), today, Modifier.padding(top = 2.dp))
+                            else -> Text(
+                                item.person.lastContacted?.let { "Last in touch ${formatDaysAgo(daysBetween(it, today))}" } ?: "Not in touch yet",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -45,11 +45,18 @@ class AlarmReceiver : BroadcastReceiver() {
             Scheduler.TYPE_REMINDER -> {
                 // Skip plans that were moved or cancelled since the alarm was set.
                 val d = repo.awaitReady()
-                if (d.people.none { p -> p.id == person && p.plans.any { it.key == plan } }) return
+                val p = d.people.firstOrNull { it.id == person } ?: return
+                val planned = p.plans.firstOrNull { it.key == plan } ?: return
+                val phone = p.contact.entries.firstOrNull { Regex("^(phone|mobile|cell)").containsMatchIn(it.key.lowercase()) }?.value
+                val isCall = planned.kind?.lowercase()?.let { "call" in it || "phone" in it } == true
                 Notifications.show(
                     context, Scheduler.notificationId(person, plan), Notifications.PLANS,
                     intent.getStringExtra(Scheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra(Scheduler.EXTRA_TEXT).orEmpty(),
                     "person/$person",
+                    listOfNotNull(
+                        if (isCall && phone != null) NotificationCompat.Action(R.drawable.ic_notification, "Call", dial(context, phone)) else null,
+                        NotificationCompat.Action(R.drawable.ic_notification, "Log it", Notifications.open(context, "log/$person/$plan")),
+                    ),
                 )
             }
             Scheduler.TYPE_FOLLOW_UP -> {
@@ -84,6 +91,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 Scheduler.reschedule(context, d.people, repo.settings.value)
             }
         }
+    }
+
+    private fun dial(context: Context, phone: String): PendingIntent {
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' }))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(context, phone.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     private fun didntHappen(context: Context, person: String, plan: String): PendingIntent {

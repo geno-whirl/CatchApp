@@ -1,6 +1,8 @@
 package io.github.genowhirl.catchup.core
 
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 // ---------------------------------------------------------------------------------------------
@@ -105,4 +107,16 @@ fun bench(people: List<Person>, today: LocalDate, weekStart: LocalDate, order: P
         PeopleOrder.CADENCE -> compareBy<BenchItem, Int?>(nullsLast()) { it.person.effectiveCadence()?.days }.then(byDue).then(byName)
     }
     return items.sortedWith(compareBy<BenchItem> { it.planned != null }.then(comparator))
+}
+
+/**
+ * Your usual free times over the next 7 days that are still open: not past, and with no
+ * catch-up already planned in that part of the day.
+ */
+fun freeMoments(people: List<Person>, usual: Set<Pair<DayOfWeek, DayPart>>, now: LocalDateTime): List<Slot> {
+    val today = now.toLocalDate()
+    val busy = upcomingPlans(people, today, 7).map { it.plan.at.date to partOf(it.plan.at.time) }.toSet()
+    return (0..6L).map { today.plusDays(it) }.flatMap { d ->
+        DayPart.entries.filter { p -> (d.dayOfWeek to p) in usual }.map { Slot(d, it) }
+    }.filter { s -> (s.date to s.part) !in busy && !(s.date == today && !s.time.isAfter(now.toLocalTime())) }
 }

@@ -20,6 +20,7 @@ import io.github.genowhirl.catchup.core.DayPart
 import io.github.genowhirl.catchup.core.Op
 import io.github.genowhirl.catchup.core.PlanInput
 import io.github.genowhirl.catchup.core.applyOps
+import io.github.genowhirl.catchup.core.freeMoments
 import io.github.genowhirl.catchup.core.imports.Candidate
 import io.github.genowhirl.catchup.core.imports.ImportSource
 import io.github.genowhirl.catchup.core.parseAll
@@ -129,7 +130,9 @@ class ScreenshotTest {
         ) { _, _, _ -> }
     }
 
-    @Test fun plans() = shot("07-plans") { PlansTab(people, now.toLocalDate(), noop, { _, _ -> }, noop) }
+    @Test fun plans() = shot("07-plans") {
+        PlansTab(people, now.toLocalDate(), noop, { _, _ -> }, noop, free = freeMoments(people, AppSettings().usualSlots(), now))
+    }
 
     @Test fun settings() = shot("08-settings") {
         SettingsScreen(

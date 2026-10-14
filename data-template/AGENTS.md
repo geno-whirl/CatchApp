@@ -39,7 +39,7 @@ Free-form notes, then a `## Log` section, newest first:
 - [ ] Ask how the house hunt is going
 ```
 
-- One `### YYYY-MM-DD[ HH:MM] · <type>[ · <place>]` heading per conversation (`Call`, `Video call`, `In person`, `Messages`, `Dinner`…).
+- One `### YYYY-MM-DD[ HH:MM] · <type>[ · <place>]` heading per conversation (`Call`, `Video call`, `Voice message`, `In person`, `Messages`, `Dinner`…).
 - `- [ ] …` is something to bring up next time; mark it `- [x]` once it's been covered.
 
 ## Common tasks

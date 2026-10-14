@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -106,6 +108,8 @@ fun PlansTab(
     onOpenPlan: (Person, Plan) -> Unit,
     onNewPlan: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
+    free: List<Slot> = emptyList(),
+    onPlanMoment: (Slot) -> Unit = {},
 ) {
     val all = upcomingPlans(people, today, 400)
     // Grouped by the same rolling 7 days as the strip above, so the two always agree.
@@ -123,6 +127,17 @@ fun PlansTab(
                     Text("Plans", style = MaterialTheme.typography.displaySmall)
                     Spacer(Modifier.height(16.dp))
                     WeekStrip(today, all, onPlanWeek)
+                }
+            }
+            if (free.isNotEmpty()) {
+                item { SectionHeader("You're free") }
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    ) {
+                        items(free, key = { it.at.format() }) { slot -> MomentCard(slot, today) { onPlanMoment(slot) } }
+                    }
                 }
             }
             if (all.isEmpty()) {
@@ -402,3 +417,27 @@ fun Slot.inviteWhen(): InviteWhen =
     if (time == part.time) InviteWhen(date, part = part) else InviteWhen(date, time = time)
 
 private fun partOf(w: When): DayPart = io.github.genowhirl.catchup.core.partOf(w.time)
+
+/** One of the week's free moments: tap to plan someone into it. */
+@Composable
+private fun MomentCard(slot: Slot, today: LocalDate, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier.width(112.dp).clip(RoundedCornerShape(20.dp))
+            .border(1.5.dp, scheme.outlineVariant, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+    ) {
+        Text(
+            if (slot.date == today) "Today" else weekday(slot.date) + " " + slot.date.dayOfMonth,
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text("${slot.part.label} · ${slot.time.format(When.HH_MM)}", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1)
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Add, null, tint = scheme.primary, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Plan", style = MaterialTheme.typography.labelLarge, color = scheme.primary)
+        }
+    }
+}

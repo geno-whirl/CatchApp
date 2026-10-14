@@ -75,4 +75,14 @@ class BoardTest {
         assertEquals(listOf("joe", "maya", "ana", "zed", "leo"), ids(PeopleOrder.CADENCE))
         assertEquals("2026-10-14 19:00", bench(people, today, monday, PeopleOrder.DUE).last().planned?.at?.format())
     }
+
+    @Test fun `free moments skip the past and times already planned`() {
+        val usual = setOf(
+            java.time.DayOfWeek.SUNDAY to DayPart.LUNCH, java.time.DayOfWeek.SUNDAY to DayPart.EVENING,
+            java.time.DayOfWeek.WEDNESDAY to DayPart.EVENING, java.time.DayOfWeek.FRIDAY to DayPart.AFTERNOON,
+        )
+        val free = freeMoments(people, usual, today.atTime(15, 0))
+        // Sunday lunch has passed; Leo's dinner fills Wednesday evening.
+        assertEquals(listOf("2026-10-11 19:00", "2026-10-16 15:00"), free.map { it.at.format() })
+    }
 }
