@@ -68,7 +68,7 @@ fun alarms(people: List<Person>, now: LocalDateTime, settings: ReminderSettings 
                 plan.at.date.plusDays(1).atTime(settings.morningFollowUp)
             } else t
         }
-        if (followAt.isAfter(now)) {
+        if (followAt.isAfter(now) && !p.loggedSince(plan)) {
             out += Alarm(
                 "f:${p.id}:${plan.key}", followAt, Alarm.Type.FOLLOW_UP, p.id, plan.key,
                 "How was it with ${p.shortName}?", "Note anything worth remembering — it takes a few seconds.",

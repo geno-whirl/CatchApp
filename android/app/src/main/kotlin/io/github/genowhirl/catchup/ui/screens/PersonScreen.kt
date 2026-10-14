@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.EventAvailable
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Sms
@@ -110,6 +111,8 @@ class PersonActions(
     val whatsapp: (String) -> Unit,
     val email: (String) -> Unit,
     val openContact: (String, String) -> Unit,
+    /** Removes a past plan without logging it. */
+    val dismissPlan: (Plan) -> Unit = {},
 )
 
 @Composable
@@ -150,7 +153,7 @@ fun PersonScreen(p: Person, today: LocalDate, actions: PersonActions) {
             }
             item { Column(Modifier.padding(horizontal = 20.dp)) { KeepInTouch(p, today, actions.keepInTouch) } }
 
-            val plans = p.upcomingPlans(today) + p.plans.filter { it.at.date.isBefore(today) }
+            val plans = p.upcomingPlans(today) + p.plans.filter { it.at.date.isBefore(today) && !p.loggedSince(it) }
             if (plans.isNotEmpty()) {
                 item { SectionHeader("Plans", Modifier.padding(horizontal = 20.dp)) }
                 items(plans, key = { "plan:${it.key}" }) { plan ->
@@ -162,7 +165,7 @@ fun PersonScreen(p: Person, today: LocalDate, actions: PersonActions) {
                                 Text(planTitle(p, plan), style = MaterialTheme.typography.titleMedium)
                                 Text(planText(plan, today), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (plan.at.date.isBefore(today)) {
-                                    Text("Tap to add notes", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                    Text("Tap to add notes, or dismiss", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                 } else plan.remindMinutes?.let {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Rounded.NotificationsActive, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -170,6 +173,9 @@ fun PersonScreen(p: Person, today: LocalDate, actions: PersonActions) {
                                         Text(minutesLabel(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
+                            }
+                            if (plan.at.date.isBefore(today)) {
+                                IconButton({ actions.dismissPlan(plan) }) { Icon(Icons.Rounded.Close, "Dismiss — it didn't happen or is already logged") }
                             }
                         }
                     }

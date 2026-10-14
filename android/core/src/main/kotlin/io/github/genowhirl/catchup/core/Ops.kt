@@ -293,6 +293,10 @@ fun applyOp(files: Map<String, String>, op: Op): Pair<Map<String, String>, Strin
             val date = parseDate(op.entry.date)
             val plans = doc.plansList()
             if (op.planKey != null) plans.removeAll { planKeyOf(it) == op.planKey }
+            // Logged on its own: plans this catch-up covers are done too.
+            else When.parse(listOfNotNull(op.entry.date, op.entry.time).joinToString(" "))?.let { logged ->
+                plans.removeAll { m -> planKeyOf(m)?.let { When.parse(it) }?.let { settles(logged, it) } == true }
+            }
             doc.setPlans(plans)
             date?.let { doc.clearSatisfiedNextContact(it) }
         }

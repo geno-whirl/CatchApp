@@ -368,7 +368,10 @@ fun CatchUpApp(vm: AppViewModel) {
                             openPerson = { nav.navigate("person/$it") },
                             log = { p, plan -> sheet = Sheet.Log(p.id, plan?.key) },
                             plan = { p -> sheet = Sheet.PlanIt(p.id, null) },
-                            didntHappen = { p, plan -> vm.apply(Op.RemovePlan(p.path, plan.key), message = "Removed") },
+                            didntHappen = { p, plan ->
+                                vm.apply(Op.RemovePlan(p.path, plan.key), message = "Plan dismissed")
+                                Notifications.cancel(context, Scheduler.notificationId(p.id, plan.key))
+                            },
                             planWeek = { nav.navigate("plan-week") },
                             call = { context.call(it) },
                             message = { p -> Reach.of(p).let { r -> r.whatsapp?.let { context.whatsapp(it) } ?: r.phone?.let { context.text(it) } } },
@@ -431,6 +434,10 @@ fun CatchUpApp(vm: AppViewModel) {
                             text = { context.text(it) },
                             whatsapp = { context.whatsapp(it) },
                             email = { context.email(it) },
+                            dismissPlan = { plan ->
+                                vm.apply(Op.RemovePlan(p.path, plan.key), message = "Plan dismissed")
+                                Notifications.cancel(context, Scheduler.notificationId(p.id, plan.key))
+                            },
                             openContact = { key, value ->
                                 when {
                                     value.startsWith("http") -> context.open(value)

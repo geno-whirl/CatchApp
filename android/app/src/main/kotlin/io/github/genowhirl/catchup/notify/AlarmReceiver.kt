@@ -69,7 +69,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     "log/$person/$plan",
                     listOf(
                         NotificationCompat.Action(R.drawable.ic_notification, "Add notes", Notifications.open(context, "log/$person/$plan")),
-                        NotificationCompat.Action(R.drawable.ic_notification, "Didn't happen", didntHappen(context, person, plan)),
+                        NotificationCompat.Action(R.drawable.ic_notification, "Dismiss", didntHappen(context, person, plan)),
                     ),
                 )
             }

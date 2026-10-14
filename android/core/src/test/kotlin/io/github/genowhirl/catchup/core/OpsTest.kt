@@ -64,6 +64,22 @@ class OpsTest {
         assertFalse(logged.contains("plans:"))
     }
 
+    @Test fun `logging on its own settles the plans it covers`() {
+        // An earlier call that day doesn't count for the dinner...
+        assertEquals(1, parsePerson("m", run(Op.Log(path, InteractionInput("2026-10-20", "12:00", "Call")))).person!!.plans.size)
+        // ...but logging it that evening (or later, or without a time) does.
+        assertEquals(0, parsePerson("m", run(Op.Log(path, InteractionInput("2026-10-20", "18:00", "Dinner")))).person!!.plans.size)
+        assertEquals(0, parsePerson("m", run(Op.Log(path, InteractionInput("2026-10-22", kind = "Messages")))).person!!.plans.size)
+        assertEquals(1, parsePerson("m", run(Op.Log(path, InteractionInput("2026-10-19", kind = "Messages")))).person!!.plans.size)
+    }
+
+    @Test fun `a plan with a later log isn't waiting for notes`() {
+        val p = parsePerson("m", maya.replace("### 2026-08-30 · Video call", "### 2026-10-21 · Messages\n\n### 2026-08-30 · Video call")).person!!
+        assertEquals(emptyList(), p.pastPlans(java.time.LocalDateTime.of(2026, 10, 22, 9, 0)))
+        val q = parsePerson("m", maya).person!!
+        assertEquals(1, q.pastPlans(java.time.LocalDateTime.of(2026, 10, 22, 9, 0)).size)
+    }
+
     @Test fun `a far-off next contact the user chose is kept`() {
         val f = mapOf(path to "---\nname: M\ncadence: monthly\nnext_contact: 2027-06-01\n---\n")
         val out = applyOp(f, Op.Log(path, InteractionInput("2026-10-11", kind = "Call"))).first.getValue(path)

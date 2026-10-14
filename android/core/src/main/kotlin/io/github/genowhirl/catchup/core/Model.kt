@@ -94,7 +94,10 @@ data class Person(
 
     /** Plans whose time has passed but that haven't been logged yet. */
     fun pastPlans(now: java.time.LocalDateTime): List<Plan> =
-        plans.filter { it.at.dateTime.isBefore(now) && !(it.at.time == null && it.at.date == now.toLocalDate()) }
+        plans.filter { it.at.dateTime.isBefore(now) && !(it.at.time == null && it.at.date == now.toLocalDate()) && !loggedSince(it) }
+
+    /** Whether something was logged at or after the plan (it happened, or was overtaken). */
+    fun loggedSince(plan: Plan): Boolean = interactions.any { settles(it.at, plan.at) }
 }
 
 const val PEOPLE_DIR = "people"
@@ -114,4 +117,15 @@ fun isPersonFile(path: String): Boolean {
 fun slugify(name: String): String {
     val ascii = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFKD).replace(Regex("\\p{M}+"), "")
     return ascii.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifEmpty { "person" }
+}
+
+/**
+ * Whether a catch-up logged at `logged` covers a plan for `planned`: it's on a later day, or
+ * the same day no more than an hour before the planned time (or either has no time).
+ */
+fun settles(logged: When, planned: When): Boolean = when {
+    logged.date.isAfter(planned.date) -> true
+    logged.date.isBefore(planned.date) -> false
+    logged.time == null || planned.time == null -> true
+    else -> !logged.time!!.isBefore(planned.time!!.minusHours(1))
 }

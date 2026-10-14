@@ -155,7 +155,7 @@ fun TodayScreen(people: List<Person>, now: LocalDateTime, userName: String, week
                             Spacer(Modifier.width(6.dp))
                             Text("Add notes")
                         }
-                        TextButton(onClick = { actions.didntHappen(p, plan) }) { Text("Didn't happen") }
+                        TextButton(onClick = { actions.didntHappen(p, plan) }) { Text("Dismiss") }
                     }
                 }
             }
