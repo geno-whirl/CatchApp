@@ -86,3 +86,10 @@ npm run build               # typecheck + production build (with service worker)
 ```
 
 See [AGENTS.md](AGENTS.md) for how the code is organised.
+
+## License
+
+Copyright © 2026 geno-whirl. CatchUp (the web app and the Android app) is free software,
+licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). The
+bundled fonts, Fraunces and Manrope, are under the SIL Open Font License
+([`android/app/src/main/assets/licenses/`](android/app/src/main/assets/licenses)).

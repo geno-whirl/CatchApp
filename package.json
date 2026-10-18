@@ -2,6 +2,7 @@
   "name": "catchup",
   "private": true,
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "description": "Keep in touch with the people who matter. Plain Markdown files, rendered as a friendly directory.",
   "type": "module",
   "scripts": {
